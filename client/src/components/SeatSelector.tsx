@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import AustraliaMap from "./ui/australia-map";
 
 interface SeatSelectorProps {
   onSeatSelect: (seatSlug: string) => void;
@@ -29,7 +28,7 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [, setLocation] = useLocation();
 
-  // Query electoral seats for the map
+  // Query electoral seats
   const { data: seats } = useQuery<ElectoralSeat[]>({
     queryKey: ["/api/seats"],
     initialData: [],
@@ -83,8 +82,8 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
         Find Your Electorate
       </h3>
 
-      <div className="md:flex md:justify-between md:items-start mb-8">
-        <div className="md:w-1/2 mb-6 md:mb-0 md:pr-8">
+      <div className="max-w-lg mx-auto mb-8">
+        <div className="w-full mb-6">
           <div className="relative">
             <input
               type="text"
@@ -129,12 +128,7 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
             </div>
           </div>
         </div>
-        <div className="md:w-1/2 bg-light-bg rounded-lg p-4 relative min-h-[250px]">
-          <AustraliaMap onSeatSelect={handleSeatClick} seats={seats || []} />
-          <p className="text-sm italic mt-2 text-center">
-            Click on the map or search above
-          </p>
-        </div>
+
       </div>
     </section>
   );
