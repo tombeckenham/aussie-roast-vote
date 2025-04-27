@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AustraliaMap from "./ui/australia-map";
 
@@ -13,11 +13,15 @@ interface ElectoralSeat {
   state: string;
 }
 
+// Debounce delay in milliseconds
+const DEBOUNCE_DELAY = 300;
+
 const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
-  // Query electoral seats
-  const { data: seats, isLoading } = useQuery<ElectoralSeat[]>({
+  // Query electoral seats for the map
+  const { data: seats } = useQuery<ElectoralSeat[]>({
     queryKey: ["/api/seats"],
     initialData: [],
   });
@@ -26,22 +30,36 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [searchResults, setSearchResults] = useState<ElectoralSeat[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Handle search
-  const handleSearch = async () => {
-    if (!searchTerm.trim() || searchTerm.length < 2) return;
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, DEBOUNCE_DELAY);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  // Search function
+  const performSearch = useCallback(async (term: string) => {
+    if (!term.trim() || term.length < 2) {
+      setSearchResults([]);
+      return;
+    }
     
     try {
       setIsSearching(true);
       
       // Determine if the search term is a postcode (4 digits) or a name
-      const isPostcode = /^\d{4}$/.test(searchTerm);
+      const isPostcode = /^\d{4}$/.test(term);
       
       // Build the search URL based on the search term type
       const searchUrl = isPostcode
-        ? `/api/seats/search?postcode=${encodeURIComponent(searchTerm)}`
-        : `/api/seats/search?query=${encodeURIComponent(searchTerm)}`;
+        ? `/api/seats/search?postcode=${encodeURIComponent(term)}`
+        : `/api/seats/search?query=${encodeURIComponent(term)}`;
       
-      // Directly fetch search results
+      // Fetch search results
       const res = await fetch(searchUrl);
       if (!res.ok) throw new Error("Failed to search seats");
       
@@ -59,13 +77,18 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [onSeatSelect]);
 
-  // Handle search input keypress (Enter)
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch();
+  // Effect to trigger search when debounced term changes
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      performSearch(debouncedSearchTerm);
     }
+  }, [debouncedSearchTerm, performSearch]);
+
+  // Handle search input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
   // Handle seat selection from list
@@ -87,44 +110,16 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
               placeholder="Enter a seat name or postcode (e.g. Sydney or 2000)"
               className="w-full border-2 border-aussie-green rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-aussie-green"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onChange={handleInputChange}
             />
-            <button
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg disabled:bg-gray-400"
-              onClick={handleSearch}
-              disabled={isSearching}
-            >
-              {isSearching ? "Searching..." : "Search"}
-            </button>
-          </div>
-          
-          <div className="mt-6">
-            <h4 className="font-heading font-bold text-lg mb-3">Popular Electorates:</h4>
-            <div className="flex flex-wrap gap-2">
-              {isLoading ? (
-                <div className="text-sm opacity-75">Loading electorates...</div>
-              ) : (
-                seats?.slice(0, 5).map((seat) => (
-                  <button
-                    key={seat.id}
-                    className="bg-light-bg hover:bg-aussie-gold transition-colors px-3 py-1 rounded-md text-sm font-semibold"
-                    onClick={() => handleSeatClick(seat.slug)}
-                  >
-                    {seat.name}
-                  </button>
-                ))
-              )}
-            </div>
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-aussie-green"></div>
+              </div>
+            )}
           </div>
 
-          {isSearching && (
-            <div className="mt-4 flex justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-aussie-green"></div>
-            </div>
-          )}
-          
-          {searchTerm && !isSearching && (
+          {(searchTerm && !isSearching) || searchResults.length > 0 ? (
             <div className="mt-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="font-heading font-bold text-lg">Search Results:</h4>
@@ -147,12 +142,14 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
                   ))
                 ) : (
                   <div className="p-3 text-center text-gray-500">
-                    No results found for "{searchTerm}". Try a different search term or postcode.
+                    {searchTerm.length >= 2 ? 
+                      `No results found for "${searchTerm}". Try a different search term or postcode.` : 
+                      'Type at least 2 characters to search'}
                   </div>
                 )}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
         
         <div className="md:w-1/2 bg-light-bg rounded-lg p-4 relative min-h-[250px]">
