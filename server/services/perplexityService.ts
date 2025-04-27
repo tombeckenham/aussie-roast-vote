@@ -85,6 +85,10 @@ Only provide factual information - don't create any commentary, humor or opinion
       console.log(
         `Successfully fetched raw data from Perplexity for ${candidate.name}`,
       );
+      
+      // Log a preview of the raw data (first 300 characters)
+      console.log(`Perplexity raw data preview for ${candidate.name}: 
+${rawContent.substring(0, 300)}...`);
 
       return rawContent;
     } catch (error) {

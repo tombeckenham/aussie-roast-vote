@@ -294,8 +294,14 @@ export async function processCandidatePerplexityData(
       temperature: 0.7,
     });
     
+    const processedContent = response.choices[0].message.content || "Failed to process candidate data.";
     console.log(`Successfully processed Perplexity data for ${candidateName} with xAI`);
-    return response.choices[0].message.content || "Failed to process candidate data.";
+    
+    // Log a preview of the processed content
+    console.log(`xAI processed content preview for ${candidateName}:
+${processedContent.substring(0, 300)}...`);
+    
+    return processedContent;
   } catch (error) {
     console.error(`Error processing Perplexity data for ${candidateName}:`, error);
     return `Failed to process data for ${candidateName}. The AI service may be temporarily unavailable.`;
