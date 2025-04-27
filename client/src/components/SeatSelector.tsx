@@ -34,15 +34,8 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   });
 
   const { data: localities } = useQuery<Locality[]>({
-    queryKey: ["/api/locality/search", debouncedSearchTerm],
-    queryFn: async () => {
-      const response = await fetch(`/api/locality/search?q=${encodeURIComponent(debouncedSearchTerm)}`);
-      if (!response.ok) {
-        throw new Error('Failed to search localities');
-      }
-      return response.json();
-    },
-    enabled: !!debouncedSearchTerm && debouncedSearchTerm.length >= 2,
+    queryKey: ["/api/locality/search?q=", debouncedSearchTerm],
+    enabled: !!debouncedSearchTerm,
   });
   // State to store search results
   const [searchResults, setSearchResults] = useState<ElectoralSeat[]>([]);
