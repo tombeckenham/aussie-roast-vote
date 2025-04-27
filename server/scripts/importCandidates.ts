@@ -123,14 +123,16 @@ async function importCandidates() {
         // Create candidate
         const fullName = `${record.ballotGivenName} ${record.surname}`;
         
-        // Check if candidate already exists
+        // Check if candidate already exists - based on name and ballot position
+        // This allows multiple candidates with the same surname in the same electorate
         const existingCandidate = await db
           .select()
           .from(candidates)
           .where(
             sql`${candidates.surname} = ${record.surname} AND 
                 ${candidates.givenName} = ${record.ballotGivenName} AND 
-                ${candidates.electoralSeatId} = ${seatId}`
+                ${candidates.electoralSeatId} = ${seatId} AND
+                ${candidates.ballotPosition} = ${parseInt(record.ballotPosition, 10)}`
           )
           .limit(1);
           
