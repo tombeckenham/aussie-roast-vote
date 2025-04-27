@@ -557,6 +557,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Getting fresh data for ${candidate.name} from Perplexity...`);
       const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
       
+      // Check if Perplexity found an image URL for the candidate
+      const imageUrlMatch = rawData.match(/IMAGE_URL: (https?:\/\/[^\s]+)/i);
+      if (imageUrlMatch && imageUrlMatch[1] && !candidate.imageUrl) {
+        const imageUrl = imageUrlMatch[1].trim();
+        console.log(`Found image URL for ${candidate.name}: ${imageUrl}`);
+        // Update the candidate's image URL in the database
+        await storage.updateCandidateImage(candidate.id, imageUrl);
+      }
+      
+      // Extract and store key policies from the raw data
+      const policiesSection = rawData.match(/(?:1\. Key policy positions|Key Policy Positions)([\s\S]*?)(?:2\. Background|### 2\.)/i);
+      if (policiesSection && policiesSection[1]) {
+        const policyText = policiesSection[1];
+        const policies = policyText.split(/\n\s*-\s*/)
+          .filter(policy => policy.trim().length > 0 && !policy.includes('Key policy positions'))
+          .map(policy => policy.trim().replace(/\*\*/g, ''))
+          .slice(0, 3);
+        
+        if (policies.length > 0) {
+          console.log(`Extracted key policies for ${candidate.name}:`, policies);
+          await storage.updateCandidatePolicies(candidate.id, policies);
+        }
+      }
+      
       // Process with xAI
       console.log(`Processing data with xAI for ${candidate.name}...`);
       const fullContent = await xaiService.processCandidatePerplexityData(

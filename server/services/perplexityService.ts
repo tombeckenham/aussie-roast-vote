@@ -37,6 +37,8 @@ Please provide:
 4. Any controversies or notable achievements
 5. How they compare to other candidates
 
+Also, if you can find it, please include any official photo URL for the candidate. If you find an image, label it with "IMAGE_URL: " followed by the URL.
+
 Only provide factual information - don't create any commentary, humor or opinions. I'll use this raw data for my own analysis.`;
 
       const response = await fetch(this.baseUrl, {

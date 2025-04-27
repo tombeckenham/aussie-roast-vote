@@ -153,11 +153,11 @@ const CandidateTable = ({
     );
   }
 
-  // Sort candidates by incumbent first, then by ballot position
+  // Sort candidates by incumbent first, then alphabetically
   const sortedCandidates = [...candidates].sort((a, b) => {
     if (a.isIncumbent && !b.isIncumbent) return -1;
     if (!a.isIncumbent && b.isIncumbent) return 1;
-    return 0;
+    return a.name.localeCompare(b.name);
   });
 
   // Force a refresh of the commentaries after fetching candidates

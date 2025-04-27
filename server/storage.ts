@@ -50,6 +50,8 @@ export interface IStorage {
   getCandidateById(id: number): Promise<Candidate | undefined>;
   getCandidatesByElectoralSeat(seatId: number): Promise<Candidate[]>;
   createCandidate(candidate: InsertCandidate): Promise<Candidate>;
+  updateCandidateImage(id: number, imageUrl: string): Promise<Candidate | undefined>;
+  updateCandidatePolicies(id: number, policies: string[]): Promise<Candidate | undefined>;
 
   // Campaign Activities
   getCampaignActivitiesByCandidate(
@@ -325,6 +327,24 @@ export class MemStorage implements IStorage {
     return candidate;
   }
 
+  async updateCandidateImage(id: number, imageUrl: string): Promise<Candidate | undefined> {
+    const candidate = this.candidates.get(id);
+    if (!candidate) return undefined;
+    
+    const updatedCandidate = { ...candidate, imageUrl };
+    this.candidates.set(id, updatedCandidate);
+    return updatedCandidate;
+  }
+
+  async updateCandidatePolicies(id: number, policies: string[]): Promise<Candidate | undefined> {
+    const candidate = this.candidates.get(id);
+    if (!candidate) return undefined;
+    
+    const updatedCandidate = { ...candidate, keyPolicies: policies };
+    this.candidates.set(id, updatedCandidate);
+    return updatedCandidate;
+  }
+
   // Campaign Activities
   async getCampaignActivitiesByCandidate(
     candidateId: number,
@@ -530,6 +550,24 @@ export class DatabaseStorage implements IStorage {
       .values(candidate)
       .returning();
     return createdCandidate;
+  }
+  
+  async updateCandidateImage(id: number, imageUrl: string): Promise<Candidate | undefined> {
+    const [updatedCandidate] = await db
+      .update(candidates)
+      .set({ imageUrl })
+      .where(eq(candidates.id, id))
+      .returning();
+    return updatedCandidate;
+  }
+
+  async updateCandidatePolicies(id: number, policies: string[]): Promise<Candidate | undefined> {
+    const [updatedCandidate] = await db
+      .update(candidates)
+      .set({ keyPolicies: policies })
+      .where(eq(candidates.id, id))
+      .returning();
+    return updatedCandidate;
   }
 
   // Campaign Activities
