@@ -405,18 +405,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Candidate not found" });
         }
 
-        // Generate the caricature image using xAI instead of OpenAI
-        console.log(`Generating caricature for candidate ${candidate.name} using xAI...`);
-        const imageData =
-          await xaiService.generateCaricatureImage(candidate);
-
-        // Return only the image data
-        res.json({
-          candidateId,
-          name: candidate.name,
-          description: "", // Sending empty description since we're not generating it anymore
-          imageData: imageData || null,
+        // Import the necessary service
+        const { default: xaiService } = await import('./services/xaiService');
+        
+        console.log(`Generating caricature for candidate ${candidate.name} using xAI API...`);
+        
+        // Create a detailed prompt for xAI focused on Australian political humor
+        const policyStr = 
+          candidate.keyPolicies && candidate.keyPolicies.length > 0
+            ? `Key policies: ${candidate.keyPolicies.join(", ")}.`
+            : "";
+        
+        const enhancedPrompt = `
+          Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
+          from the ${candidate.partyBallotName || "Independent"} party.
+          
+          ${policyStr}
+          
+          ${candidate.isIncumbent ? "They are the current incumbent MP." : ""}
+          ${candidate.bio ? "Bio excerpt: " + candidate.bio.substring(0, 150) : ""}
+          
+          Style: Australian political cartoon with exaggerated features, bright colors, clean lines,
+          similar to cartoons from The Australian, Sydney Morning Herald, or The Betoota Advocate.
+          
+          Must include these Australian elements: 
+          - Either a cork hat, Australian flag, kangaroo, koala, or Sydney Opera House
+          - Colors resembling the Australian flag (green and gold) or the outback (orange and red)
+          - Quintessential Aussie caricature style with satirical elements
+          - A humorous visual joke or pun based on their political stance
+          
+          Format: Digital illustration with white background, clean and shareable
+        `;
+        
+        // Make a direct fetch to the xAI API (without using any 'size' parameter)
+        const response = await fetch("https://api.x.ai/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            prompt: enhancedPrompt.trim(),
+            model: "grok-2-vision-1212", // Using the latest model for image generation
+            n: 1
+          }),
         });
+
+        if (!response.ok) {
+          console.error(`xAI image generation failed with status: ${response.status}`);
+          const errorData = await response.json();
+          console.error('Error details:', errorData);
+          throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
+        }
+        
+        const data = await response.json();
+        
+        // Type guard to check if response data has the expected structure
+        if (
+          data &&
+          typeof data === "object" &&
+          Array.isArray(data.data) &&
+          data.data.length > 0 &&
+          typeof data.data[0].url === "string"
+        ) {
+          console.log(`Successfully generated caricature image for ${candidate.name} using xAI`);
+          
+          // Fetch the image from the URL and convert to base64
+          try {
+            const imageResponse = await fetch(data.data[0].url);
+            const imageBuffer = await imageResponse.arrayBuffer();
+            const base64Image = Buffer.from(imageBuffer).toString("base64");
+            
+            // Return image data in the response
+            res.json({
+              candidateId,
+              name: candidate.name,
+              description: "", // Not generating description anymore
+              imageData: base64Image,
+            });
+          } catch (fetchError) {
+            console.error(`Error fetching image for ${candidate.name}:`, fetchError);
+            res.status(500).json({ message: "Failed to fetch generated image" });
+          }
+        } else {
+          console.error(`No valid image URL returned for ${candidate.name} from xAI:`, data);
+          res.status(500).json({ message: "Failed to generate image (invalid response)" });
+        }
       } catch (error) {
         console.error("Error generating caricature:", error);
         res.status(500).json({ message: "Failed to generate caricature" });
