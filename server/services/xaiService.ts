@@ -144,7 +144,7 @@ export async function answerCandidateQuestion(
 
     // Make the request to xAI
     const response = await openai.chat.completions.create({
-      model: "grok-2-1212", // Using the text model
+      model: "grok-3-beta", // Using the text model
       messages: [
         {
           role: "user",
@@ -265,14 +265,14 @@ export async function processCandidatePerplexityData(
     const prompt = `
       I have raw research data about Australian politician ${candidateName} 
       ${partyName ? `from the ${partyName} party` : "who is an Independent candidate"}.
-      Create an Aussie style summary of the candidate using this data. Really take the piss out them and their policies.
+      Create an Aussie style summary of the candidate using this data. Really take the piss out them and their policies. Make the summary short and sweet. 1 paragraph is enough. Don't include g'day or any preamble. Just get straight into it.
       
       Here's the raw data:
       ${rawData}`;
 
     // Make the request to xAI
     const response = await openai.chat.completions.create({
-      model: "grok-3-fast-latest", // Using the text model
+      model: "grok-3-beta", // Using the text model
       messages: [
         {
           role: "user",
@@ -288,6 +288,7 @@ export async function processCandidatePerplexityData(
       "Failed to process candidate data.";
     console.log(
       `Successfully processed Perplexity data for ${candidateName} with xAI`,
+      processedContent,
     );
 
     // Log a preview of the processed content
@@ -348,6 +349,7 @@ export async function generateCaricatureImage(
     `;
 
     // Generate the image using xAI's image generation model
+    // Note: xAI API doesn't support the 'size' parameter like OpenAI
     const response = await fetch("https://api.x.ai/v1/images/generations", {
       method: "POST",
       headers: {
@@ -358,12 +360,19 @@ export async function generateCaricatureImage(
         prompt: enhancedPrompt.trim(),
         model: "grok-2-vision-1212", // Using the latest model for image generation
         n: 1,
-        size: "1024x1024",
+        // Removed size parameter because it's not supported by xAI API
       }),
     });
 
+    if (!response.ok) {
+      console.error(`xAI image generation failed with status: ${response.status}`);
+      const errorData = await response.json();
+      console.error('Error details:', errorData);
+      throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
+    }
+    
     const data = await response.json();
-    console.log(`xAI image generation response status: ${response.status}`);
+    console.log(`xAI image generation response status: ${response.status} - Success`);
 
     // Type guard to check if response data has the expected structure
     interface XAIImageResponse {

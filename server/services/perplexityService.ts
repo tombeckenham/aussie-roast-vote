@@ -71,8 +71,8 @@ Only provide factual information - don't create any commentary, humor or opinion
           `Perplexity API error (${response.status}): ${errorText}`,
         );
       }
-
-      const data = (await response.json()) as {
+      const responseJson = await response.json();
+      const data = responseJson as {
         choices: Array<{
           message: {
             content: string;
@@ -80,15 +80,14 @@ Only provide factual information - don't create any commentary, humor or opinion
         }>;
       };
 
-      // Return the raw content from Perplexity's research
-      const rawContent = data.choices[0].message.content;
+      // Concat all the messages into one long string
+      const rawContent = data.choices
+        .map((choice) => choice.message.content)
+        .join(" ");
       console.log(
         `Successfully fetched raw data from Perplexity for ${candidate.name}`,
+        rawContent,
       );
-      
-      // Log a preview of the raw data (first 300 characters)
-      console.log(`Perplexity raw data preview for ${candidate.name}: 
-${rawContent.substring(0, 300)}...`);
 
       return rawContent;
     } catch (error) {
