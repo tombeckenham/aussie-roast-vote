@@ -266,7 +266,7 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
                     className="rounded-lg max-w-full h-auto shadow-md mb-2"
                   />
                   <p className="text-xs mt-2 text-center opacity-75">
-                    Generated using OpenAI's GPT-4 Vision model
+                    Generated using OpenAI's DALL-E 3 model
                   </p>
                 </div>
               )}
@@ -299,7 +299,7 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
               <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-lg text-center">
                 <p className="text-sm">
                   <span className="font-bold">Please wait:</span> Generating both text descriptions and images 
-                  can take 30-45 seconds. The GPT-4 Vision model requires extra time to create a detailed caricature.
+                  can take 30-45 seconds. Grok creates the text description, then DALL-E 3 creates the image.
                 </p>
               </div>
             )}

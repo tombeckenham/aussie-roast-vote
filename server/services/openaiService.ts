@@ -24,23 +24,30 @@ export async function generateCaricatureImage(
     // Create an optimized prompt for DALL-E based on the description
     // We need to make it more concise and focused on the visual aspects
     const enhancedPrompt = `
-      Create a political caricature in cartoon style of Australian politician ${candidate.name} 
+      Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
       from the ${candidate.partyBallotName || 'Independent'} party.
       
       Based on this description: ${description.substring(0, 700)}
       
-      Style: Classic political cartoon with exaggerated features, bright colors, clean lines
-      Background: Include subtle Australian elements
-      Format: Digital illustration with white background
+      Style: Australian political cartoon with exaggerated features, bright colors, clean lines,
+      similar to cartoons from The Australian, Sydney Morning Herald, or The Betoota Advocate
+      
+      Must include these Australian elements: 
+      - Either a cork hat, Australian flag, kangaroo, koala, or Sydney Opera House
+      - Colors resembling the Australian flag (green and gold) or the outback (orange and red)
+      - Quintessential Aussie caricature style, not American or European
+      
+      Format: Digital illustration with white background, clean and shareable
     `;
     
-    // Generate the image using the new GPT-4 image generation model
+    // Generate the image using OpenAI's image generation model
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.images.generate({
-      model: "gpt-4-vision-preview",  // Using the newer GPT-4 image model
+      model: "dall-e-3",  // Using DALL-E 3 for image generation
       prompt: enhancedPrompt.trim(),
       n: 1,
       size: "1024x1024",
-      quality: "hd",
+      quality: "standard",
       response_format: "b64_json", // Get base64 encoded image directly
     });
     
