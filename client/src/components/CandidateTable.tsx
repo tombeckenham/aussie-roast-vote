@@ -186,6 +186,7 @@ const CandidateTable = ({
                     <AvatarImage
                       src={candidate.imageUrl || ""}
                       alt={candidate.name}
+                      className="object-cover"
                     />
                     <AvatarFallback>
                       <User size={32} />

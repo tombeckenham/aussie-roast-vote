@@ -353,7 +353,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }),
         );
 
-        res.json(candidatesWithParty);
+        // Sort candidates with incumbent first
+        const sortedCandidates = candidatesWithParty.sort((a, b) => {
+          // Incumbents first
+          if (a.isIncumbent && !b.isIncumbent) return -1;
+          if (!a.isIncumbent && b.isIncumbent) return 1;
+          
+          // Then by ballot position
+          return (a.ballotPosition || 999) - (b.ballotPosition || 999);
+        });
+
+        res.json(sortedCandidates);
       } catch (error) {
         console.error("Error fetching candidates:", error);
         res.status(500).json({ message: "Failed to fetch candidates" });
@@ -488,23 +498,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ) {
           console.log(`Successfully generated caricature image for ${candidate.name} using xAI`);
           
-          // Fetch the image from the URL and convert to base64
+          // Fetch the image from the URL and store it in the database
+          let base64Image = null;
           try {
-            const imageResponse = await fetch(data.data[0].url);
+            const imageUrl = data.data[0].url;
+            await storage.updateCandidateImage(candidate.id, imageUrl); // Store the image URL
+
+            const imageResponse = await fetch(imageUrl);
             const imageBuffer = await imageResponse.arrayBuffer();
-            const base64Image = Buffer.from(imageBuffer).toString("base64");
-            
-            // Return image data in the response
-            res.json({
-              candidateId,
-              name: candidate.name,
-              description: "", // Not generating description anymore
-              imageData: base64Image,
-            });
-          } catch (fetchError) {
-            console.error(`Error fetching image for ${candidate.name}:`, fetchError);
-            res.status(500).json({ message: "Failed to fetch generated image" });
+            base64Image = Buffer.from(imageBuffer).toString("base64");
+          } catch (fetchOrStoreError) {
+            console.error(`Error fetching or storing image for ${candidate.name}:`, fetchOrStoreError);
+            res.status(500).json({ message: "Failed to fetch or store generated image" });
+            return;
           }
+          
+          // Return image data in the response
+          res.json({
+            candidateId,
+            name: candidate.name,
+            description: "", // Not generating description anymore
+            imageData: base64Image,
+          });
         } else {
           console.error(`No valid image URL returned for ${candidate.name} from xAI:`, data);
           res.status(500).json({ message: "Failed to generate image (invalid response)" });
