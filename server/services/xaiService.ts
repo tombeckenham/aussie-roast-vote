@@ -338,10 +338,6 @@ export async function generateCaricatureImage(
       Style: Australian political cartoon with exaggerated features, bright colors, clean lines,
       similar to cartoons from The Australian, Sydney Morning Herald, or The Betoota Advocate.
       
-      Must include these Australian elements: 
-      - Either a cork hat, Australian flag, kangaroo, koala, or Sydney Opera House
-      - Colors resembling the Australian flag (green and gold) or the outback (orange and red)
-      
       Quintessential Aussie caricature style with satirical elements
       - A humorous visual joke or pun based on their political stance
       

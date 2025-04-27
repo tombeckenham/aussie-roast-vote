@@ -567,13 +567,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extract and store key policies from the raw data
-      const policiesSection = rawData.match(/(?:1\. Key policy positions|Key Policy Positions)([\s\S]*?)(?:2\. Background|### 2\.)/i);
+      const policiesSection = rawData.match(/(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i);
       if (policiesSection && policiesSection[1]) {
         const policyText = policiesSection[1];
-        const policies = policyText.split(/\n\s*-\s*/)
-          .filter(policy => policy.trim().length > 0 && !policy.includes('Key policy positions'))
+        let policies = policyText.split(/\n\s*-\s*|\n\*\*|\n•/)
+          .filter(policy => policy.trim().length > 0 && 
+                 !policy.includes('Key policy positions') && 
+                 !policy.includes('Key Policy Positions') &&
+                 !policy.includes('and Political Stances'))
           .map(policy => policy.trim().replace(/\*\*/g, ''))
-          .slice(0, 3);
+          .filter(policy => policy.length > 10 && policy.length < 100); // Reasonable length for a policy
+        
+        // Get the first 3 policies
+        policies = policies.slice(0, 3);
         
         if (policies.length > 0) {
           console.log(`Extracted key policies for ${candidate.name}:`, policies);

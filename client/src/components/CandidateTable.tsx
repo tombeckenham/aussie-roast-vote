@@ -64,6 +64,12 @@ const CandidateTable = ({
     queryKey: [`/api/seats/${seatId}/candidates`],
     enabled: !!seatId,
   });
+  
+  // Fetch seat information to display in the incumbent's track record
+  const { data: seat } = useQuery<{id: number, name: string}>({
+    queryKey: [`/api/seats/${seatId}`],
+    enabled: !!seatId,
+  });
 
   // Fetch candidate commentaries from the API
   const { data: commentaries = {}, refetch: refetchCommentaries } = useQuery<
@@ -202,7 +208,7 @@ const CandidateTable = ({
               </div>
               {candidate.isIncumbent && (
                 <div className="text-sm bg-gray-50 p-2 rounded mb-2 text-gray-700">
-                  <strong>Track Record:</strong> Serving since 2022; focused on climate action and healthcare reforms
+                  <strong>Track Record:</strong> Current Member for {seat?.name}; serving since 2022; focused on climate action and healthcare reforms
                 </div>
               )}
             </div>
