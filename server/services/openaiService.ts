@@ -40,14 +40,14 @@ export async function generateCaricatureImage(
       Format: Digital illustration with white background, clean and shareable
     `;
     
-    // Generate the image using OpenAI's image generation model
-    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    // Generate the image using OpenAI's latest image generation model
+    // Using GPT-Image-1 which is the newest image generation model as of May 2024
     const response = await openai.images.generate({
-      model: "dall-e-3",  // Using DALL-E 3 for image generation
+      model: "gpt-image-1",  // Using GPT-Image-1 model as requested
       prompt: enhancedPrompt.trim(),
       n: 1,
       size: "1024x1024",
-      quality: "standard",
+      quality: "hd",
       response_format: "b64_json", // Get base64 encoded image directly
     });
     
