@@ -187,7 +187,6 @@ export async function findLocalitiesByQuery(
   try {
     // Query the database for localities matching the given query
     const localityResult = await storage.searchLocalitiesByQuery(query);
-    console.log("localityResult", localityResult);
     return localityResult;
   } catch (error) {
     console.error("Error fetching localities from the database:", error);

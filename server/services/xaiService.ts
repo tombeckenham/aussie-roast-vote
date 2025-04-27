@@ -5,16 +5,16 @@
 
 import OpenAI from "openai";
 import { Candidate } from "@shared/schema";
-import fs from 'fs';
-import path from 'path';
-import { db } from '../db';
-import { candidates } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import fs from "fs";
+import path from "path";
+import { db } from "../db";
+import { candidates } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Initialize the OpenAI client with x.ai base URL and API key
-const openai = new OpenAI({ 
-  baseURL: "https://api.x.ai/v1", 
-  apiKey: process.env.XAI_API_KEY 
+const openai = new OpenAI({
+  baseURL: "https://api.x.ai/v1",
+  apiKey: process.env.XAI_API_KEY,
 });
 
 /**
@@ -23,15 +23,15 @@ const openai = new OpenAI({
  * @returns Base64 encoded image data
  */
 export async function generateCandidateCaricature(
-  candidate: Candidate
+  candidate: Candidate,
 ): Promise<string> {
   try {
     console.log(`Generating caricature for ${candidate.name}...`);
-    
+
     // Create a prompt describing the candidate and the style of caricature
     const prompt = `
       Create a political caricature image of Australian politician ${candidate.name} 
-      from the ${candidate.partyBallotName || 'Independent'} party.
+      from the ${candidate.partyBallotName || "Independent"} party.
       
       The caricature should be:
       - Exaggerated in classic political cartoon style
@@ -43,26 +43,28 @@ export async function generateCandidateCaricature(
       Include props or elements that represent their political party.
       The image should have a white background and be centered.
     `;
-    
+
     // Make the request to xAI's vision model
     const response = await openai.chat.completions.create({
       model: "grok-2-vision-1212", // Use the vision model
       messages: [
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       max_tokens: 4000,
-      response_format: { type: "text" }
+      response_format: { type: "text" },
     });
-    
+
     // This will return a text description rather than an image
     // In a production app, you would need to use a different approach
     console.log("Generated caricature description for: " + candidate.name);
     const content = response.choices[0].message.content;
-    return content ? content : "Failed to generate a caricature description. Please try again later.";
-    
+    return content
+      ? content
+      : "Failed to generate a caricature description. Please try again later.";
+
     // Note: The actual image generation would require using a different API
     // or configuring Grok differently. For now, we're returning the text description.
   } catch (error) {
@@ -77,15 +79,15 @@ export async function generateCandidateCaricature(
  * @returns The generated roast text
  */
 export async function generateCandidateRoast(
-  candidate: Candidate
+  candidate: Candidate,
 ): Promise<string | null> {
   try {
     console.log(`Generating roast for ${candidate.name}...`);
-    
+
     // Create a prompt for the roast
     const prompt = `
       Create a humorous Australian-style political roast of ${candidate.name} 
-      from the ${candidate.partyBallotName || 'Independent'} party.
+      from the ${candidate.partyBallotName || "Independent"} party.
       
       The roast should:
       - Be funny and witty in a uniquely Aussie way
@@ -97,20 +99,20 @@ export async function generateCandidateRoast(
       
       Make it sound like something an Australian political satirist would write.
     `;
-    
+
     // Make the request to xAI
     const response = await openai.chat.completions.create({
-      model: "grok-2-1212", // Using the text model
+      model: "grok-3-beta", // Using the text model
       messages: [
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       max_tokens: 500,
       temperature: 0.8, // More creative
     });
-    
+
     console.log("Generated roast for: " + candidate.name);
     return response.choices[0].message.content;
   } catch (error) {
@@ -127,15 +129,15 @@ export async function generateCandidateRoast(
  */
 export async function answerCandidateQuestion(
   candidate: Candidate,
-  question: string
+  question: string,
 ): Promise<string | null> {
   try {
     console.log(`Answering question about ${candidate.name}: "${question}"`);
-    
+
     // Create a prompt for answering the question
     const prompt = `
       As an Australian political commentator with a humorous style, answer this question about
-      ${candidate.name} from the ${candidate.partyBallotName || 'Independent'} party:
+      ${candidate.name} from the ${candidate.partyBallotName || "Independent"} party:
       
       "${question}"
       
@@ -148,20 +150,20 @@ export async function answerCandidateQuestion(
       
       Remember to keep it light-hearted but somewhat realistic for an Australian context.
     `;
-    
+
     // Make the request to xAI
     const response = await openai.chat.completions.create({
       model: "grok-2-1212", // Using the text model
       messages: [
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       max_tokens: 400,
       temperature: 0.7,
     });
-    
+
     console.log("Generated answer for question about: " + candidate.name);
     return response.choices[0].message.content;
   } catch (error) {
@@ -178,19 +180,26 @@ export async function answerCandidateQuestion(
  */
 export async function generateCampaignActivities(
   candidate: Candidate,
-  count: number = 3
-): Promise<Array<{title: string, description: string, location: string, dateTime: Date}> | null> {
+  count: number = 3,
+): Promise<Array<{
+  title: string;
+  description: string;
+  location: string;
+  dateTime: Date;
+}> | null> {
   try {
-    console.log(`Generating ${count} campaign activities for ${candidate.name}...`);
-    
+    console.log(
+      `Generating ${count} campaign activities for ${candidate.name}...`,
+    );
+
     const now = new Date();
     const oneMonthFromNow = new Date();
     oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-    
+
     // Create a prompt for generating campaign activities
     const prompt = `
       Generate ${count} fictional upcoming campaign activities for Australian politician
-      ${candidate.name} from the ${candidate.partyBallotName || 'Independent'} party
+      ${candidate.name} from the ${candidate.partyBallotName || "Independent"} party
       who is running in the electorate of ${candidate.electoralSeatId}.
       
       For each activity, provide:
@@ -209,32 +218,32 @@ export async function generateCampaignActivities(
         }
       ]
     `;
-    
+
     // Make the request to xAI
     const response = await openai.chat.completions.create({
       model: "grok-2-1212", // Using the text model
       messages: [
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       max_tokens: 1000,
       temperature: 0.7,
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
     });
-    
+
     const content = response.choices[0].message.content || "[]";
     console.log("Generated campaign activities for: " + candidate.name);
-    
+
     // Parse the JSON response
     try {
       const activities = JSON.parse(content);
-      
+
       // Convert string dates to Date objects
       return activities.map((activity: any) => ({
         ...activity,
-        dateTime: new Date(activity.dateTime)
+        dateTime: new Date(activity.dateTime),
       }));
     } catch (parseError) {
       console.error("Error parsing activities JSON:", parseError);
@@ -256,15 +265,15 @@ export async function generateCampaignActivities(
 export async function processCandidatePerplexityData(
   candidateName: string,
   partyName: string | null,
-  rawData: string
+  rawData: string,
 ): Promise<string> {
   try {
     console.log(`Processing Perplexity data for ${candidateName} with xAI...`);
-    
+
     // Create a prompt for processing the raw data
     const prompt = `
       I have raw research data about Australian politician ${candidateName} 
-      ${partyName ? `from the ${partyName} party` : 'who is an Independent candidate'}.
+      ${partyName ? `from the ${partyName} party` : "who is an Independent candidate"}.
       
       Here's the raw data:
       ${rawData}
@@ -280,30 +289,37 @@ export async function processCandidatePerplexityData(
       
       Focus on making this humorous while incorporating the real information from the data.
     `;
-    
+
     // Make the request to xAI
     const response = await openai.chat.completions.create({
       model: "grok-2-1212", // Using the text model
       messages: [
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       max_tokens: 800,
       temperature: 0.7,
     });
-    
-    const processedContent = response.choices[0].message.content || "Failed to process candidate data.";
-    console.log(`Successfully processed Perplexity data for ${candidateName} with xAI`);
-    
+
+    const processedContent =
+      response.choices[0].message.content ||
+      "Failed to process candidate data.";
+    console.log(
+      `Successfully processed Perplexity data for ${candidateName} with xAI`,
+    );
+
     // Log a preview of the processed content
     console.log(`xAI processed content preview for ${candidateName}:
 ${processedContent.substring(0, 300)}...`);
-    
+
     return processedContent;
   } catch (error) {
-    console.error(`Error processing Perplexity data for ${candidateName}:`, error);
+    console.error(
+      `Error processing Perplexity data for ${candidateName}:`,
+      error,
+    );
     return `Failed to process data for ${candidateName}. The AI service may be temporarily unavailable.`;
   }
 }
@@ -313,5 +329,5 @@ export default {
   generateCandidateRoast,
   answerCandidateQuestion,
   generateCampaignActivities,
-  processCandidatePerplexityData
+  processCandidatePerplexityData,
 };
