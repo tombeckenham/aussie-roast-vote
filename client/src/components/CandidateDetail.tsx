@@ -255,51 +255,37 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Caricature image display */}
-              {caricatureImage && (
-                <div className="bg-white rounded-lg p-4 shadow-md flex flex-col items-center">
+            <div className="flex justify-center">
+              {/* Only display the image in a centered container */}
+              {caricatureImage ? (
+                <div className="bg-white rounded-lg p-6 shadow-md flex flex-col items-center max-w-md mx-auto">
                   <h6 className="font-heading font-semibold text-lg mb-3 text-center">Visual Caricature</h6>
                   <img 
                     src={`data:image/png;base64,${caricatureImage}`}
                     alt={`${candidate.name} caricature`}
                     className="rounded-lg max-w-full h-auto shadow-md mb-2"
                   />
-                  <p className="text-xs mt-2 text-center opacity-75">
+                  <p className="text-xs mt-4 text-center opacity-75">
                     Generated using OpenAI's GPT-Image-1 model
                   </p>
                 </div>
-              )}
-              
-              {/* Description display */}
-              <div className={`bg-light-bg rounded-lg p-4 ${!caricatureImage ? 'col-span-2' : ''}`}>
-                <h6 className="font-heading font-semibold text-lg mb-3">Description</h6>
-                {caricatureDescription ? (
-                  <div className="space-y-3 text-base">
-                    {caricatureDescription.split('\n').map((paragraph, index) => (
-                      <p key={index}>{paragraph}</p>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center italic">
+              ) : (
+                <div className="bg-light-bg rounded-lg p-8 text-center w-full max-w-md mx-auto">
+                  <h6 className="font-heading font-semibold text-lg mb-3 text-center">Visual Caricature</h6>
+                  <div className="text-center italic my-8">
                     {generatingCaricature ? 
-                      "AI is creating a caricature description... This might take a moment." : 
-                      "Click 'Generate Caricature' to create a humorous description of this candidate in Australian style."}
+                      "AI is creating a caricature image... This might take a moment." : 
+                      "Click 'Generate Caricature' to create a humorous visual interpretation of this candidate in Australian style."}
                   </div>
-                )}
-                {caricatureDescription && (
-                  <p className="text-xs mt-4 text-center opacity-75">
-                    Generated using x.ai's Grok model
-                  </p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             
             {generatingCaricature && (
               <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-lg text-center">
                 <p className="text-sm">
-                  <span className="font-bold">Please wait:</span> Generating both text descriptions and images 
-                  can take 30-45 seconds. Grok creates the text description, then GPT-Image-1 creates the image.
+                  <span className="font-bold">Please wait:</span> Generating caricature image 
+                  can take 30-45 seconds. GPT-Image-1 is creating a humorous visual interpretation.
                 </p>
               </div>
             )}
