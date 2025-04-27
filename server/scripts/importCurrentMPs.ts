@@ -80,7 +80,7 @@ async function importCurrentMPs() {
   
   try {
     // Read the CSV file
-    const csvFilePath = path.join(process.cwd(), 'current_mps.csv');
+    const csvFilePath = path.join(process.cwd(), 'server/data/current_mps.csv');
     if (!fs.existsSync(csvFilePath)) {
       console.error(`❌ CSV file not found at ${csvFilePath}`);
       return { success: false, error: 'CSV file not found' };
