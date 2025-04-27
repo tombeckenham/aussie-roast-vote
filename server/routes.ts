@@ -14,7 +14,9 @@ import {
   initializeAECDataService,
   findDivisionByPostcode,
   getDivisionDetailsByName,
-  findDivisionsByPostcode
+  findDivisionsByPostcode,
+  loadPostcodeMappings,
+  loadDivisionDetails
 } from "./services/aecDataService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -41,18 +43,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const searchQuery = (q as string).trim();
-      // Use a Map to store results keyed by seat name (all uppercase)
-      // This ensures we don't have duplication if the same seat is found by different methods
-      const uniqueResults = new Map<string, ElectoralSeat>();
+      // Store the distinct results by division name
+      const resultsByDivision = new Map<string, any>();
       
-      // Get all seats from database (for matching if needed)
-      const allSeats = await storage.getElectoralSeats();
-      const allSeatsByName = new Map<string, ElectoralSeat>();
-      allSeats.forEach(seat => {
-        allSeatsByName.set(seat.name.toUpperCase(), seat);
-      });
-      
-      // 1. Prioritize postcode search for numeric queries (3-4 digits)
+      // 1. Check if it's a postcode (3-4 digits)
       if (/^\d{3,4}$/.test(searchQuery)) {
         console.log(`Searching for postcode: ${searchQuery}`);
         
@@ -61,141 +55,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (divisionNames.length > 0) {
           console.log(`Found divisions for postcode ${searchQuery}: ${divisionNames.join(', ')}`);
           
+          // Return the AEC data directly for each division
           for (const divisionName of divisionNames) {
-            // First, see if we already have this division in the database
-            // This matches the actual database record if we have it
-            const existingSeat = allSeatsByName.get(divisionName.toUpperCase());
-            if (existingSeat) {
-              console.log(`Found matching seat: ${existingSeat.name} (${existingSeat.id})`);
-              uniqueResults.set(divisionName.toUpperCase(), existingSeat);
-              continue;
-            }
-            
-            // If no matching seat in database, create virtual seat from AEC data
             const details = getDivisionDetailsByName(divisionName);
             if (details) {
-              // Create a virtual seat object for display purposes
-              // with a negative ID to avoid conflicts with database records
-              const virtualSeat: ElectoralSeat = {
-                id: -1 * Math.floor(Math.random() * 10000 + 1000), // Negative random ID
-                name: details.Name,
-                slug: details.Name.toLowerCase().replace(/\s+/g, '-'),
+              resultsByDivision.set(divisionName.toUpperCase(), {
+                divisionId: details.DivisionId,
+                divisionName: details.Name,
                 state: details.State,
-                description: `Electoral division of ${details.Name} in ${details.State}.`,
-                isMarginial: false,
-                currentMp: null,
-                currentParty: null,
-                keyIssues: [],
-                previousResults: {},
-                position: null
-              };
-              
-              uniqueResults.set(divisionName.toUpperCase(), virtualSeat);
-              console.log(`Created virtual seat for ${details.Name} (${details.State})`);
+                source: "aec_data",
+                postcodes: [searchQuery]
+              });
             }
           }
         }
-      }
-      
-      // If we don't have results yet and it's not a postcode,
-      // or we want to complement postcode results with text search:
-      
-      if (!(/^\d{3,4}$/.test(searchQuery)) || uniqueResults.size === 0) {
-        // 2. Search by suburb name against AEC data
-        console.log(`Searching for suburb: "${searchQuery}"`);
+      } else {
+        // 2. Search by suburb/locality in AEC data
+        console.log(`Searching for suburb/locality: "${searchQuery}"`);
         
-        // Get all postcode mappings
-        const mappings = loadPostcodeMappings();
+        // Get all postcode mappings directly from AEC service
+        const postcodeData = loadPostcodeMappings();
         
         // Search for suburbs that contain the query
-        const matchingSuburbs = mappings.filter(mapping => 
+        const matchingSuburbs = postcodeData.filter((mapping) => 
           mapping.locality.toLowerCase().includes(searchQuery.toLowerCase())
         );
         
         if (matchingSuburbs.length > 0) {
-          // Get unique division names from matching suburbs
-          const divisionSet = new Set<string>();
-          for (const suburb of matchingSuburbs) {
-            console.log(`Found partial suburb match: "${suburb.locality}" for query "${searchQuery}"`);
-            divisionSet.add(suburb.divisionName);
-          }
+          // Group all matches by division name
+          const divisionDataMap = new Map<string, { 
+            localities: string[],
+            postcodes: string[],
+            state: string 
+          }>();
           
-          // For each division, find matching seat or create virtual seat
-          console.log(`Found matching divisions: ${[...divisionSet].join(', ').toLowerCase()}`);
-          
-          for (const divisionName of divisionSet) {
-            // Check if we have this division in the database
-            const existingSeat = allSeatsByName.get(divisionName.toUpperCase());
-            if (existingSeat) {
-              console.log(`Found matching seat: ${existingSeat.name} (${existingSeat.id})`);
-              uniqueResults.set(divisionName.toUpperCase(), existingSeat);
-              continue;
+          // Track all matched suburbs for debugging
+          for (const match of matchingSuburbs) {
+            console.log(`Found suburb match: "${match.locality}" → ${match.divisionName} (${match.state})`);
+            
+            // Get or initialize division data
+            if (!divisionDataMap.has(match.divisionName.toUpperCase())) {
+              divisionDataMap.set(match.divisionName.toUpperCase(), {
+                localities: [],
+                postcodes: [],
+                state: match.state
+              });
             }
             
-            // If no match in database, create virtual seat
+            // Add the suburb and postcode to this division's data
+            const divData = divisionDataMap.get(match.divisionName.toUpperCase())!;
+            
+            // Only add if not already in the arrays
+            if (!divData.localities.includes(match.locality)) {
+              divData.localities.push(match.locality);
+            }
+            
+            if (!divData.postcodes.includes(match.postcode)) {
+              divData.postcodes.push(match.postcode);
+            }
+          }
+          
+          // Convert the division data to results
+          for (const [divisionName, data] of divisionDataMap.entries()) {
+            // Get additional details from the division data
             const details = getDivisionDetailsByName(divisionName);
+            
+            // Only include if we have division details
             if (details) {
-              const virtualSeat: ElectoralSeat = {
-                id: -1 * Math.floor(Math.random() * 10000 + 1000),
-                name: details.Name,
-                slug: details.Name.toLowerCase().replace(/\s+/g, '-'),
+              resultsByDivision.set(divisionName.toUpperCase(), {
+                divisionId: details.DivisionId,
+                divisionName: details.Name,
                 state: details.State,
-                description: `Electoral division of ${details.Name} in ${details.State}.`,
-                isMarginial: false,
-                currentMp: null,
-                currentParty: null,
-                keyIssues: [],
-                previousResults: {},
-                position: null
-              };
-              
-              uniqueResults.set(divisionName.toUpperCase(), virtualSeat);
+                source: "aec_data",
+                localities: data.localities,
+                postcodes: data.postcodes
+              });
             }
           }
         }
         
-        // 3. Direct division name search (if the query matches division names)
-        // This is useful for searches like "Sydney" or "Melbourne"
+        // 3. Direct division name search
         const divisions = loadDivisionDetails();
-        const matchingDivisions = divisions.filter(div => 
-          div.Name.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchingDivisions = divisions.filter((division) => 
+          division.Name.toLowerCase().includes(searchQuery.toLowerCase())
         );
         
         for (const division of matchingDivisions) {
-          // Check if we have this division in the database
-          const existingSeat = allSeatsByName.get(division.Name.toUpperCase());
-          if (existingSeat) {
-            uniqueResults.set(division.Name.toUpperCase(), existingSeat);
-            continue;
-          }
-          
-          // Create virtual seat
-          const virtualSeat: ElectoralSeat = {
-            id: -1 * Math.floor(Math.random() * 10000 + 1000),
-            name: division.Name,
-            slug: division.Name.toLowerCase().replace(/\s+/g, '-'),
+          resultsByDivision.set(division.Name.toUpperCase(), {
+            divisionId: division.DivisionId,
+            divisionName: division.Name,
             state: division.State,
-            description: `Electoral division of ${division.Name} in ${division.State}.`,
-            isMarginial: false,
-            currentMp: null,
-            currentParty: null,
-            keyIssues: [],
-            previousResults: {},
-            position: null
-          };
-          
-          uniqueResults.set(division.Name.toUpperCase(), virtualSeat);
+            source: "aec_data",
+            matchType: "division_name"
+          });
         }
       }
       
-      // Convert map to array
-      const finalResults = Array.from(uniqueResults.values());
-      
-      console.log(`Unified search for "${searchQuery}" found ${finalResults.length} seats`);
-      return res.json(finalResults);
+      // Return an array of the results
+      const results = Array.from(resultsByDivision.values());
+      console.log(`AEC data search for "${searchQuery}" found ${results.length} divisions`);
+      return res.json(results);
     } catch (error) {
-      console.error("Error searching seats:", error);
-      res.status(500).json({ message: "Failed to search electoral seats" });
+      console.error("Error searching AEC data:", error);
+      res.status(500).json({ message: "Failed to search electoral data" });
     }
   });
 
