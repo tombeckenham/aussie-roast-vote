@@ -6,7 +6,8 @@ import { z } from "zod";
 import {
   insertCandidateQASchema,
   ElectoralSeat,
-  electoralSeats
+  electoralSeats,
+  localities
 } from "@shared/schema";
 import { ensureCandidatesForSeat, generateCandidateData } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
@@ -81,9 +82,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ${electoralSeats.description} ILIKE ${`%${searchQuery}%`}`
         );
       
-      // If we still don't have results, try looking up suburbs in AEC data
+      // If we still don't have results, search by locality directly in our localities table
       if (seats.length === 0) {
-        console.log(`No direct database matches, checking AEC suburbs data for: "${searchQuery}"`);
+        console.log(`No direct database matches, checking localities table for: "${searchQuery}"`);
+        
+        // First search localities table for the suburb/locality name
+        const matchingLocalities = await db.select({
+          divisionName: localities.divisionName
+        })
+        .from(localities)
+        .where(
+          sql`${localities.locality} ILIKE ${`%${searchQuery}%`}`
+        )
+        .limit(50);
+        
+        if (matchingLocalities.length > 0) {
+          // Extract unique division names
+          const divisionNames = Array.from(new Set(matchingLocalities.map(l => l.divisionName)));
+          console.log(`Found matching divisions from localities table: ${divisionNames.join(', ')}`);
+          
+          // Look up matching seats in our database
+          const suburbSeats = await db.select()
+            .from(electoralSeats)
+            .where(
+              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `${name}`)}])`
+            );
+          
+          console.log(`Found ${suburbSeats.length} matching seats in database for locality search "${searchQuery}"`);
+          return res.json(suburbSeats);
+        }
+        
+        // As a fallback, try the AEC data directly
+        console.log(`No matches in localities table, checking AEC suburbs data directly for: "${searchQuery}"`);
         
         // Find all localities/suburbs matching the search
         const postcodeData = loadPostcodeMappings();
@@ -94,16 +124,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (matchingSuburbs.length > 0) {
           // Create array of unique division names
           const divisionNames = Array.from(new Set(matchingSuburbs.map(s => s.divisionName)));
-          console.log(`Found matching divisions from suburbs: ${divisionNames.join(', ')}`);
+          console.log(`Found matching divisions from AEC data: ${divisionNames.join(', ')}`);
           
           // Look up matching seats in our database
           const suburbSeats = await db.select()
             .from(electoralSeats)
             .where(
-              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `%${name}%`)}])`
+              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `${name}`)}])`
             );
           
-          console.log(`Found ${suburbSeats.length} matching seats in database for suburb search "${searchQuery}"`);
+          console.log(`Found ${suburbSeats.length} matching seats in database for AEC suburb search "${searchQuery}"`);
           return res.json(suburbSeats);
         }
       }

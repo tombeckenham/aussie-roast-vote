@@ -181,3 +181,31 @@ export const candidateQARelations = relations(candidateQA, ({ one }) => ({
     references: [candidates.id],
   }),
 }));
+
+// Localities (suburbs) with postcode mapping
+export const localities = pgTable("localities", {
+  id: serial("id").primaryKey(),
+  postcode: text("postcode").notNull(),
+  locality: text("locality").notNull(),
+  state: text("state").notNull(),
+  stateCode: text("state_code").notNull(),
+  divisionName: text("division_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Create indices for faster searches
+export const localitiesRelations = relations(localities, ({ one }) => ({
+  electoralSeat: one(electoralSeats, {
+    fields: [localities.divisionName],
+    references: [electoralSeats.name],
+    relationName: "locality_to_seat",
+  }),
+}));
+
+export const insertLocalitySchema = createInsertSchema(localities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLocality = z.infer<typeof insertLocalitySchema>;
+export type Locality = typeof localities.$inferSelect;
