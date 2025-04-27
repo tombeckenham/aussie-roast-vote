@@ -34,7 +34,10 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     initialData: [],
   });
 
-  const { data: localities } = useQuery<Locality[]>({
+  const { data: localityData } = useQuery<{
+    localities: Locality[];
+    resultSearchTerm: string;
+  }>({
     queryKey: ["/api/locality/search", debouncedSearchTerm],
     enabled: !!debouncedSearchTerm,
     queryFn: async () => {
@@ -44,9 +47,13 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
       if (!response.ok) {
         throw new Error("Failed to search localities");
       }
-      return response.json();
+      return {
+        localities: (await response.json()) as Locality[],
+        resultSearchTerm: debouncedSearchTerm,
+      };
     },
   });
+  const { localities, resultSearchTerm } = localityData || {};
   // State to store search results
   const [searchResults, setSearchResults] = useState<ElectoralSeat[]>([]);
 
@@ -69,11 +76,10 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   // Handle seat selection from list
   const handleSeatClick = (slug: string) => {
     // Convert division name to lowercase and replace spaces with hyphens for slug format
-    const formattedSlug = slug.toLowerCase().replace(/\s+/g, '-');
+    const formattedSlug = slug.toLowerCase().replace(/\s+/g, "-");
     // Navigate to the division page
     setLocation(`/division/${formattedSlug}`);
     // Also call the onSeatSelect prop for backward compatibility
-    onSeatSelect(slug);
   };
 
   return (
@@ -120,17 +126,17 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
                 ))
               ) : (
                 <div className="p-3 text-center text-gray-500">
-                  {searchTerm.length >= 2 && debouncedSearchTerm === searchTerm
-                    ? `No results found for "${searchTerm}". Try a different search term or postcode.`
+                  {searchTerm.length >= 2 &&
+                  debouncedSearchTerm === resultSearchTerm
+                    ? `No results found for "${resultSearchTerm}". Try a different search term or postcode.`
                     : searchTerm.length > 0
-                    ? "Searching..."
-                    : "Type at least 2 characters to search"}
+                      ? "Searching..."
+                      : "Type at least 2 characters to search"}
                 </div>
               )}
             </div>
           </div>
         </div>
-
       </div>
     </section>
   );

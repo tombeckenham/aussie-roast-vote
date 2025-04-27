@@ -1,18 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, User, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 
 interface CandidateTableProps {
@@ -45,18 +44,30 @@ interface CaricatureData {
   imageData: string | null;
 }
 
-const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = false }: CandidateTableProps) => {
+const CandidateTable = ({
+  seatId,
+  onViewCandidate,
+  isGeneratingCommentary = false,
+}: CandidateTableProps) => {
   const queryClient = useQueryClient();
-  const [generatingCaricature, setGeneratingCaricature] = useState<number | null>(null);
+  const [generatingCaricature, setGeneratingCaricature] = useState<
+    number | null
+  >(null);
 
   // Fetch candidates for the electoral seat
-  const { data: candidates, isLoading, error } = useQuery<Candidate[]>({
+  const {
+    data: candidates,
+    isLoading,
+    error,
+  } = useQuery<Candidate[]>({
     queryKey: [`/api/seats/${seatId}/candidates`],
     enabled: !!seatId,
   });
 
   // Fetch candidate commentaries from the API
-  const { data: commentaries = {}, refetch: refetchCommentaries } = useQuery<Record<number, string>>({
+  const { data: commentaries = {}, refetch: refetchCommentaries } = useQuery<
+    Record<number, string>
+  >({
     queryKey: [`/api/seats/${seatId}/commentaries`],
     enabled: !!seatId && !!candidates?.length,
     initialData: {},
@@ -67,23 +78,32 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
   const generateCaricatureMutation = useMutation({
     mutationFn: async (candidateId: number) => {
       setGeneratingCaricature(candidateId);
-      const response = await fetch(`/api/candidates/${candidateId}/caricature`, {
-        method: 'POST',
-      });
+      const response = await fetch(
+        `/api/candidates/${candidateId}/caricature`,
+        {
+          method: "POST",
+        },
+      );
       if (!response.ok) {
-        throw new Error('Failed to generate caricature');
+        throw new Error("Failed to generate caricature");
       }
       return response.json() as Promise<CaricatureData>;
     },
     onSuccess: (data) => {
       // Invalidate the candidate query to refresh the data
-      queryClient.invalidateQueries({ queryKey: [`/api/candidates/${data.candidateId}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/candidates/${data.candidateId}`],
+      });
       setGeneratingCaricature(null);
     },
     onError: () => {
       setGeneratingCaricature(null);
     },
   });
+
+  const handleRefreshCommentaries = useCallback(() => {
+    refetchCommentaries();
+  }, []);
 
   const handleGenerateCaricature = (candidateId: number) => {
     if (generatingCaricature !== candidateId) {
@@ -105,10 +125,13 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
     return (
       <div className="p-6 bg-light-bg rounded-lg text-center">
         <p className="text-lg text-gray-600">
-          {error ? "Error loading candidates" : "No candidates found for this seat yet."}
+          {error
+            ? "Error loading candidates"
+            : "No candidates found for this seat yet."}
         </p>
         <p className="text-sm text-gray-500 mt-2">
-          We're still gathering information on all candidates for the 2025 election.
+          We're still gathering information on all candidates for the 2025
+          election.
         </p>
       </div>
     );
@@ -122,21 +145,25 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
   });
 
   // Force a refresh of the commentaries after fetching candidates
-  useEffect(() => {
-    if (candidates && candidates.length > 0) {
-      refetchCommentaries();
-    }
-  }, [candidates, refetchCommentaries]);
+  // useEffect(() => {
+  //   handleRefreshCommentaries();
+  // }, [isGeneratingCommentary]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {sortedCandidates.map((candidate) => (
-        <Card key={candidate.id} className={candidate.isIncumbent ? "border-aussie-gold border-2" : ""}>
+        <Card
+          key={candidate.id}
+          className={candidate.isIncumbent ? "border-aussie-gold border-2" : ""}
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={candidate.imageUrl || ""} alt={candidate.name} />
+                  <AvatarImage
+                    src={candidate.imageUrl || ""}
+                    alt={candidate.name}
+                  />
                   <AvatarFallback>
                     <User size={20} />
                   </AvatarFallback>
@@ -144,37 +171,50 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
                 <div>
                   <CardTitle className="text-lg">{candidate.name}</CardTitle>
                   <CardDescription>
-                    {candidate.partyBallotName || (candidate.isIndependent ? "Independent" : "-")}
+                    {candidate.partyBallotName ||
+                      (candidate.isIndependent ? "Independent" : "-")}
                     {candidate.position && <span> · {candidate.position}</span>}
                   </CardDescription>
                 </div>
               </div>
               {candidate.isIncumbent && (
-                <Badge className="bg-aussie-gold text-dark-text">Incumbent</Badge>
+                <Badge className="bg-aussie-gold text-dark-text">
+                  Incumbent
+                </Badge>
               )}
             </div>
           </CardHeader>
-          
+
           <CardContent>
             {/* Key Policies */}
             <div className="mb-4">
-              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">Key Policy Focus</h4>
+              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">
+                Key Policy Focus
+              </h4>
               <div className="flex flex-wrap gap-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
                   candidate.keyPolicies.slice(0, 3).map((policy, index) => (
-                    <Badge key={index} variant="outline" className="bg-gray-100">
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className="bg-gray-100"
+                    >
                       {policy}
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-gray-500 text-sm">No policies listed</span>
+                  <span className="text-gray-500 text-sm">
+                    No policies listed
+                  </span>
                 )}
               </div>
             </div>
-            
+
             {/* Commentary */}
             <div className="mb-4">
-              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">Aussie-Style Commentary</h4>
+              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">
+                Aussie-Style Commentary
+              </h4>
               {isGeneratingCommentary && !commentaries[candidate.id] ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
@@ -189,11 +229,13 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
                   {commentaries[candidate.id]}
                 </div>
               ) : (
-                <span className="text-gray-500 text-sm">Commentary will be generated automatically</span>
+                <span className="text-gray-500 text-sm">
+                  Commentary will be generated automatically
+                </span>
               )}
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex justify-between">
             <Button
               onClick={() => onViewCandidate(candidate.id)}
@@ -206,9 +248,13 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
               onClick={() => handleGenerateCaricature(candidate.id)}
               variant="outline"
               size="sm"
-              disabled={generateCaricatureMutation.isPending && generatingCaricature === candidate.id}
+              disabled={
+                generateCaricatureMutation.isPending &&
+                generatingCaricature === candidate.id
+              }
             >
-              {generateCaricatureMutation.isPending && generatingCaricature === candidate.id
+              {generateCaricatureMutation.isPending &&
+              generatingCaricature === candidate.id
                 ? "Generating..."
                 : "Generate Caricature"}
             </Button>

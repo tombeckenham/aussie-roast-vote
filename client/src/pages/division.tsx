@@ -30,28 +30,40 @@ const DivisionPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [generatingCommentary, setGeneratingCommentary] = useState(false);
-  
+
   // Get the seat info
-  const { data: seat, isLoading: seatLoading, error: seatError } = useQuery<ElectoralSeat>({
+  const {
+    data: seat,
+    isLoading: seatLoading,
+    error: seatError,
+  } = useQuery<ElectoralSeat>({
     queryKey: [`/api/seats/${slug}`],
-    enabled: !!slug
+    enabled: !!slug,
   });
-  
+
   // Generate commentaries for all candidates in this seat
   const generateCommentaryMutation = useMutation({
     mutationFn: async () => {
       setGeneratingCommentary(true);
       // Make sure we have a valid seat id
       if (!seat?.id) throw new Error("Invalid seat ID");
-      
-      const response = await apiRequest("POST", `/api/seats/${seat.id}/generate-commentaries`, {});
+
+      const response = await apiRequest(
+        "POST",
+        `/api/seats/${seat.id}/generate-commentaries`,
+        {},
+      );
       return response.json();
     },
     onSuccess: (data) => {
       // Invalidate candidate queries and commentaries to refresh the table
-      queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/candidates`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
-      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/seats/${seat?.id}/candidates`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/seats/${seat?.id}/commentaries`],
+      });
+
       // No need to show a toast when automatically generating on page load
       console.log("Commentaries generated:", data.commentaries);
       setGeneratingCommentary(false);
@@ -64,27 +76,29 @@ const DivisionPage = () => {
         variant: "destructive",
       });
       setGeneratingCommentary(false);
-    }
+    },
   });
-  
+
   // Effect to trigger commentary generation when seat data loads (only once)
   useEffect(() => {
     let refreshInterval: NodeJS.Timeout | null = null;
     let hasGenerated = false; // Flag to track if we've already triggered generation
-    
+
     if (seat?.id && !hasGenerated) {
       console.log("Auto-generating commentaries for seat:", seat.name);
       hasGenerated = true; // Set flag to prevent re-triggering
-      
+
       // Generate commentaries only if we haven't already triggered it
       if (!generateCommentaryMutation.isPending) {
         generateCommentaryMutation.mutate();
       }
-      
+
       // Setup polling to refresh commentaries every few seconds
       refreshInterval = setInterval(() => {
         if (generatingCommentary) {
-          queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
+          queryClient.invalidateQueries({
+            queryKey: [`/api/seats/${seat?.id}/commentaries`],
+          });
           console.log("Refreshing commentaries for seat:", seat.name);
         } else {
           // Clear interval when we're done generating
@@ -96,7 +110,7 @@ const DivisionPage = () => {
         }
       }, 3000); // Poll every 3 seconds while generating
     }
-    
+
     // Clean up interval on unmount
     return () => {
       if (refreshInterval) {
@@ -105,7 +119,7 @@ const DivisionPage = () => {
       }
     };
   }, [seat?.id]);
-  
+
   const handleGenerateCommentary = () => {
     generateCommentaryMutation.mutate();
   };
@@ -139,16 +153,15 @@ const DivisionPage = () => {
     return (
       <div className="container mx-auto py-8">
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <Button 
-            variant="outline" 
-            onClick={handleBackClick}
-            className="mb-6"
-          >
+          <Button variant="outline" onClick={handleBackClick} className="mb-6">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to search
           </Button>
-          <h1 className="text-2xl font-bold text-center text-red-500 mb-4">Division Not Found</h1>
+          <h1 className="text-2xl font-bold text-center text-red-500 mb-4">
+            Division Not Found
+          </h1>
           <p className="text-center">
-            Sorry, we couldn't find the electoral division "{slug}". Please try searching again.
+            Sorry, we couldn't find the electoral division "{slug}". Please try
+            searching again.
           </p>
         </div>
       </div>
@@ -157,35 +170,34 @@ const DivisionPage = () => {
 
   return (
     <div className="container mx-auto py-8">
-      <Button 
-        variant="outline" 
-        onClick={handleBackClick}
-        className="mb-6"
-      >
+      <Button variant="outline" onClick={handleBackClick} className="mb-6">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to search
       </Button>
-      
+
       <div className="mb-8">
         <SeatInfo slug={slug} />
       </div>
-      
+
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-aussie-blue">Candidates</h2>
         </div>
-        
+
         {generatingCommentary && (
           <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-lg">
             <p className="text-sm">
-              <span className="font-bold">Generating commentary:</span> Aussie-style humorous commentary is being created for all {seat.name} candidates. This might take 10-20 seconds per candidate.
+              <span className="font-bold">Generating commentary:</span>{" "}
+              Aussie-style humorous commentary is being created for all{" "}
+              {seat.name} candidates. This might take 10-20 seconds per
+              candidate.
             </p>
           </div>
         )}
-        
-        <CandidateTable 
-          seatId={seat?.id} 
-          onViewCandidate={handleViewCandidate} 
-          isGeneratingCommentary={generatingCommentary} 
+
+        <CandidateTable
+          seatId={seat?.id}
+          onViewCandidate={handleViewCandidate}
+          isGeneratingCommentary={generatingCommentary}
         />
       </div>
     </div>

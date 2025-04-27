@@ -246,9 +246,66 @@ export async function generateCampaignActivities(
   }
 }
 
+/**
+ * Process raw candidate data from Perplexity and turn it into a structured roast
+ * @param candidateName The name of the candidate
+ * @param partyName The name of the party
+ * @param rawData The raw data from Perplexity
+ * @returns Structured and humorous commentary
+ */
+export async function processCandidatePerplexityData(
+  candidateName: string,
+  partyName: string | null,
+  rawData: string
+): Promise<string> {
+  try {
+    console.log(`Processing Perplexity data for ${candidateName} with xAI...`);
+    
+    // Create a prompt for processing the raw data
+    const prompt = `
+      I have raw research data about Australian politician ${candidateName} 
+      ${partyName ? `from the ${partyName} party` : 'who is an Independent candidate'}.
+      
+      Here's the raw data:
+      ${rawData}
+      
+      Please synthesize this information into a witty, satirical commentary about the candidate 
+      that roasts them in good Aussie political humor style. The commentary should:
+      
+      - Be approximately 250-300 words
+      - Use authentic Australian political humor and expressions
+      - Include references to their policies and background from the data
+      - Be cheeky but not mean-spirited
+      - Start with a strong opener that captures their essence
+      
+      Focus on making this humorous while incorporating the real information from the data.
+    `;
+    
+    // Make the request to xAI
+    const response = await openai.chat.completions.create({
+      model: "grok-2-1212", // Using the text model
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.7,
+    });
+    
+    console.log(`Successfully processed Perplexity data for ${candidateName} with xAI`);
+    return response.choices[0].message.content || "Failed to process candidate data.";
+  } catch (error) {
+    console.error(`Error processing Perplexity data for ${candidateName}:`, error);
+    return `Failed to process data for ${candidateName}. The AI service may be temporarily unavailable.`;
+  }
+}
+
 export default {
   generateCandidateCaricature,
   generateCandidateRoast,
   answerCandidateQuestion,
-  generateCampaignActivities
+  generateCampaignActivities,
+  processCandidatePerplexityData
 };

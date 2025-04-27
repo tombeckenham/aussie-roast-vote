@@ -209,32 +209,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Generate a new commentary regardless if one exists
           try {
-              // Try to use Perplexity first for more recent data
+              // Try the combined Perplexity+xAI approach for better data
               let fullContent;
               try {
-                // Use Perplexity service for up-to-date information
-                console.log(`Generating Perplexity commentary for ${candidate.name}, ${candidate.partyId}...`);
-                
-                // Get structured data from Perplexity
-                const rawResponse = await perplexityService.generateCandidateCommentary(
+                // First, get raw factual data from Perplexity
+                console.log(`Getting Perplexity raw data for ${candidate.name}...`);
+                const rawData = await perplexityService.getCandidateRawData(
                   candidate,
                   seat.name,
                 );
                 
-                // The full commentary is returned as a string by the service for backward compatibility
-                fullContent = rawResponse;
-                console.log(`Successfully generated Perplexity structured data for ${candidate.name}`);
+                // Get party name for better context
+                let partyName = "Independent";
+                if (candidate.partyId) {
+                  const party = await storage.getPartyById(candidate.partyId);
+                  if (party) {
+                    partyName = party.name;
+                  }
+                }
                 
-                console.log(`Generated Perplexity commentary for: ${candidate.name}`);
-              } catch (error) {
-                const perplexityError = error as Error;
-                console.error(
-                  `Perplexity error, falling back to xAI: ${perplexityError.message}`,
+                // Second, have xAI process it into a humorous commentary
+                console.log(`Processing Perplexity data with xAI for ${candidate.name}...`);
+                fullContent = await xaiService.processCandidatePerplexityData(
+                  candidate.name,
+                  partyName,
+                  rawData
                 );
-                // Fall back to xAI if Perplexity fails
-                fullContent =
-                  await xaiService.generateCandidateRoast(candidate);
-                console.log(`Generated xAI commentary for: ${candidate.name}`);
+                
+                console.log(`Generated combined Perplexity+xAI commentary for: ${candidate.name}`);
+              } catch (error) {
+                console.error(
+                  `Error in combined approach, falling back to xAI only: ${(error as Error).message}`,
+                );
+                // Fall back to xAI only if the combined approach fails
+                fullContent = await xaiService.generateCandidateRoast(candidate);
+                console.log(`Generated xAI-only commentary for: ${candidate.name}`);
               }
 
               if (fullContent) {

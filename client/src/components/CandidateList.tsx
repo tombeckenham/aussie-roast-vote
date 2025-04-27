@@ -1,11 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 
 interface CandidateListProps {
   seatId: number;
   onViewCandidate: (id: number) => void;
+  isGeneratingCommentary: boolean;
 }
 
 interface Candidate {
@@ -27,9 +35,17 @@ interface Candidate {
   isIncumbent: boolean | null;
 }
 
-const CandidateList = ({ seatId, onViewCandidate }: CandidateListProps) => {
+const CandidateList = ({
+  seatId,
+  onViewCandidate,
+  isGeneratingCommentary = false,
+}: CandidateListProps) => {
   // Fetch candidates for the electoral seat
-  const { data: candidates, isLoading, error } = useQuery<Candidate[]>({
+  const {
+    data: candidates,
+    isLoading,
+    error,
+  } = useQuery<Candidate[]>({
     queryKey: [`/api/seats/${seatId}/candidates`],
     enabled: !!seatId,
   });
@@ -59,10 +75,13 @@ const CandidateList = ({ seatId, onViewCandidate }: CandidateListProps) => {
     return (
       <div className="p-6 bg-light-bg rounded-lg text-center">
         <p className="text-lg text-gray-600">
-          {error ? "Error loading candidates" : "No candidates found for this seat yet."}
+          {error
+            ? "Error loading candidates"
+            : "No candidates found for this seat yet."}
         </p>
         <p className="text-sm text-gray-500 mt-2">
-          We're still gathering information on all candidates for the 2025 election.
+          We're still gathering information on all candidates for the 2025
+          election.
         </p>
       </div>
     );
@@ -75,15 +94,22 @@ const CandidateList = ({ seatId, onViewCandidate }: CandidateListProps) => {
           <CardHeader>
             <CardTitle className="text-xl">{candidate.name}</CardTitle>
             <CardDescription>
-              {candidate.partyBallotName || (candidate.isIndependent ? "Independent" : "Unknown party")}
+              {candidate.partyBallotName ||
+                (candidate.isIndependent ? "Independent" : "Unknown party")}
               {candidate.isIncumbent && " (Incumbent)"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {candidate.campaignSlogan && (
-              <p className="italic text-gray-600 mb-2">"{candidate.campaignSlogan}"</p>
+              <p className="italic text-gray-600 mb-2">
+                "{candidate.campaignSlogan}"
+              </p>
             )}
-            {candidate.bio && <p className="text-sm text-gray-700 line-clamp-3">{candidate.bio}</p>}
+            {candidate.bio && (
+              <p className="text-sm text-gray-700 line-clamp-3">
+                {candidate.bio}
+              </p>
+            )}
           </CardContent>
           <CardFooter>
             <Button
