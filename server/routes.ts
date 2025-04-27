@@ -9,6 +9,7 @@ import {
 import { ensureCandidatesForSeat, generateCandidateData } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
 import { searchSeatsByPostcode, initializePostcodeMapping } from "./services/postcodeService";
+import { findElectoralSeatsByPostcode, initializeAECDataService } from "./services/aecDataService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize postcode mapping service with AEC API data

@@ -1,16 +1,18 @@
 /**
- * Script to convert the existing postcode-to-electorate CSV data into a JSON file
- * This creates a structured lookup map for fast, efficient access in the search functionality
- * Based on the AEC data format: state;postcode;locality;division
+ * Script to convert the AEC postcode and division data into JSON files
+ * This creates structured lookup maps for fast, efficient access in the search functionality
  */
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
 
-// Path to the existing CSV file
-const CSV_FILE_PATH = './server/data/postcodes-to-divisions.csv';
-// Output JSON file path
-const JSON_OUTPUT_PATH = './server/data/postcode-electorate-map.json';
+// Input paths
+const POSTCODE_CSV_PATH = './server/data/postcodes-to-divisions.csv';
+const AEC_DIVISIONS_SOURCE = './attached_assets/aec_divisions.json'; 
+
+// Output paths
+const POSTCODE_JSON_PATH = './server/data/postcode-electorate-map.json';
+const DIVISIONS_JSON_PATH = './server/data/division-details.json';
 
 // Ensure the data directory exists
 if (!fs.existsSync('./server/data')) {
@@ -46,19 +48,56 @@ interface PostcodeLookupResult {
   states: string[];
 }
 
+// Interface based on the AEC division JSON structure
+interface DivisionDetail {
+  DivisionId: number;
+  Name: string;
+  State: string;
+  Abbreviation: string;
+  LocationDescription: string;
+  Area: string;
+  NameDerivation: string;
+  // Optional additional fields
+  ElectoralEventId?: number;
+  Contested?: boolean;
+  OfficeAddress1?: string;
+  OfficeAddress2?: string;
+  OfficeAddress3?: string;
+  OfficeSuburb?: string;
+  OfficeState?: string;
+  OfficePostcode?: string;
+  PostalAddress1?: string;
+  PostalAddress2?: string;
+  PostalAddress3?: string;
+  PostalSuburb?: string;
+  PostalState?: string;
+  PostalPostcode?: string;
+  PhoneNumber?: string;
+  Fax?: string;
+  EmailAddress?: string;
+  ProclamationYear?: number;
+  FirstElectionYear?: number;
+  DemographicRating?: string;
+  LastRedistributionDate?: string;
+  ProductsIndustries?: string;
+  SortOrder?: number;
+  Updated?: string;
+}
+
+// Function to generate postcode-to-division mapping
 async function generatePostcodeJson() {
   try {
     console.log('Reading existing CSV file for conversion to JSON...');
     
     // Check if the CSV file exists
-    if (!fs.existsSync(CSV_FILE_PATH)) {
-      console.error(`CSV file not found at ${CSV_FILE_PATH}`);
+    if (!fs.existsSync(POSTCODE_CSV_PATH)) {
+      console.error(`CSV file not found at ${POSTCODE_CSV_PATH}`);
       console.error('Please ensure the AEC postcode data CSV exists before running this script');
       process.exit(1);
     }
     
     // Read the CSV file
-    const csvData = fs.readFileSync(CSV_FILE_PATH, 'utf8');
+    const csvData = fs.readFileSync(POSTCODE_CSV_PATH, 'utf8');
     
     // Parse the CSV data - format is "state;postcode;locality;division"
     const records = parse(csvData, {
@@ -114,7 +153,7 @@ async function generatePostcodeJson() {
         postcodeLookup[postcode].divisionNames.push(mapping.divisionName);
       }
       
-      // Add the locality if not already in the array
+      // Add the locality if not already in the array and not empty
       if (mapping.locality && !postcodeLookup[postcode].localities.includes(mapping.locality)) {
         postcodeLookup[postcode].localities.push(mapping.locality);
       }
@@ -156,13 +195,13 @@ async function generatePostcodeJson() {
     
     // Write the JSON file
     const jsonData = JSON.stringify(postcodeLookup, null, 2);
-    fs.writeFileSync(JSON_OUTPUT_PATH, jsonData);
+    fs.writeFileSync(POSTCODE_JSON_PATH, jsonData);
     
-    console.log(`Successfully wrote mapping to ${JSON_OUTPUT_PATH}`);
+    console.log(`Successfully wrote postcode mapping to ${POSTCODE_JSON_PATH}`);
     
     // Print a few examples for verification
     const samplePostcodes = ['2000', '2087', '2600', '3000', '4000', '5000'];
-    console.log('\nSample mappings:');
+    console.log('\nSample postcode mappings:');
     samplePostcodes.forEach(postcode => {
       if (postcodeLookup[postcode]) {
         const result = postcodeLookup[postcode];
@@ -174,19 +213,97 @@ async function generatePostcodeJson() {
       }
     });
     
+    return postcodeLookup;
   } catch (error) {
     console.error('Error generating postcode JSON:', error);
     process.exit(1);
   }
 }
 
-// Run the function
-generatePostcodeJson()
-  .then(() => {
-    console.log('Script completed successfully');
+// Function to process and save the AEC division details
+async function generateDivisionsJson() {
+  try {
+    console.log('Processing AEC division details...');
+    
+    // Check if the divisions file exists
+    if (!fs.existsSync(AEC_DIVISIONS_SOURCE)) {
+      console.error(`Divisions data file not found at ${AEC_DIVISIONS_SOURCE}`);
+      console.error('Please ensure the AEC divisions JSON file exists before running this script');
+      process.exit(1);
+    }
+    
+    // Read the divisions JSON file
+    const divisionsData = fs.readFileSync(AEC_DIVISIONS_SOURCE, 'utf8');
+    
+    // Parse the JSON
+    const divisions = JSON.parse(divisionsData) as DivisionDetail[];
+    
+    console.log(`Parsed ${divisions.length} division details from JSON file`);
+    
+    // Create a map of division name to division details for easy lookup
+    const divisionLookup: Record<string, DivisionDetail> = {};
+    
+    divisions.forEach(division => {
+      // Normalize the division name as a key
+      const normalizeDivisionName = division.Name.toUpperCase();
+      divisionLookup[normalizeDivisionName] = division;
+    });
+    
+    // Ensure we have our test case divisions
+    const requiredDivisions = ['MACKELLAR', 'SYDNEY', 'WENTWORTH'];
+    const missingDivisions = requiredDivisions.filter(div => !divisionLookup[div]);
+    
+    if (missingDivisions.length > 0) {
+      console.log(`Note: Some required test divisions are missing from the original data: ${missingDivisions.join(', ')}`);
+      console.log('These will be handled specially in the application code if needed');
+    }
+    
+    // Write the JSON file
+    const jsonData = JSON.stringify(divisionLookup, null, 2);
+    fs.writeFileSync(DIVISIONS_JSON_PATH, jsonData);
+    
+    console.log(`Successfully wrote division details to ${DIVISIONS_JSON_PATH}`);
+    
+    // Print a few examples for verification
+    const sampleDivisions = ['CANBERRA', 'SYDNEY', 'MELBOURNE', 'BRISBANE', 'MACKELLAR'];
+    console.log('\nSample division details:');
+    sampleDivisions.forEach(divisionName => {
+      if (divisionLookup[divisionName]) {
+        const division = divisionLookup[divisionName];
+        console.log(`Division: ${division.Name} (${division.State})`);
+        console.log(`  Area: ${division.Area} sq km`);
+        console.log(`  Description: ${division.LocationDescription?.substring(0, 100)}...`);
+      } else {
+        console.log(`Division ${divisionName} not found in the source data`);
+      }
+    });
+    
+    return divisionLookup;
+  } catch (error) {
+    console.error('Error generating divisions JSON:', error);
+    process.exit(1);
+  }
+}
+
+// Run both functions in parallel
+async function main() {
+  try {
+    const [postcodeMap, divisionMap] = await Promise.all([
+      generatePostcodeJson(),
+      generateDivisionsJson()
+    ]);
+    
+    console.log('All AEC data processing completed successfully');
+    console.log(`Generated files:`);
+    console.log(`- ${POSTCODE_JSON_PATH}`);
+    console.log(`- ${DIVISIONS_JSON_PATH}`);
+    
     process.exit(0);
-  })
-  .catch(error => {
+  } catch (error) {
     console.error('Script failed:', error);
     process.exit(1);
-  });
+  }
+}
+
+// Execute the main function
+main();
