@@ -40,18 +40,18 @@ const DivisionPage = () => {
   // Effect to trigger commentary generation when seat data loads
   useEffect(() => {
     if (seat?.id) {
-      handleGenerateRoasts();
+      handleGenerateCommentary();
     }
   }, [seat?.id]);
 
-  // Generate roasts for all candidates in this seat
-  const generateRoastsMutation = useMutation({
+  // Generate commentaries for all candidates in this seat
+  const generateCommentaryMutation = useMutation({
     mutationFn: async () => {
-      setGeneratingRoasts(true);
+      setGeneratingCommentary(true);
       // Make sure we have a valid seat id
       if (!seat?.id) throw new Error("Invalid seat ID");
       
-      const response = await apiRequest("POST", `/api/seats/${seat.id}/generate-roasts`, {});
+      const response = await apiRequest("POST", `/api/seats/${seat.id}/generate-commentaries`, {});
       return response.json();
     },
     onSuccess: (data) => {
@@ -59,21 +59,22 @@ const DivisionPage = () => {
       queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/candidates`] });
       
       // No need to show a toast when automatically generating on page load
-      setGeneratingRoasts(false);
+      console.log("Commentaries generated:", data.commentaries);
+      setGeneratingCommentary(false);
     },
     onError: (error) => {
-      console.error("Error generating roasts:", error);
+      console.error("Error generating commentaries:", error);
       toast({
         title: "Failed to generate commentaries",
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
-      setGeneratingRoasts(false);
+      setGeneratingCommentary(false);
     }
   });
   
-  const handleGenerateRoasts = () => {
-    generateRoastsMutation.mutate();
+  const handleGenerateCommentary = () => {
+    generateCommentaryMutation.mutate();
   };
 
   const handleViewCandidate = (id: number) => {
@@ -140,7 +141,7 @@ const DivisionPage = () => {
           <h2 className="text-2xl font-bold text-aussie-blue">Candidates</h2>
         </div>
         
-        {generatingRoasts && (
+        {generatingCommentary && (
           <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-lg">
             <p className="text-sm">
               <span className="font-bold">Generating commentary:</span> Aussie-style humorous commentary is being created for all {seat.name} candidates. This might take 10-20 seconds per candidate.

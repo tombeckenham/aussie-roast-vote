@@ -155,8 +155,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Generate roasts for all candidates in a seat at once
-  app.post("/api/seats/:seatId/generate-roasts", async (req: Request, res: Response) => {
+  // Generate commentaries for all candidates in a seat at once
+  app.post("/api/seats/:seatId/generate-commentaries", async (req: Request, res: Response) => {
     try {
       const seatId = parseInt(req.params.seatId, 10);
       
@@ -176,22 +176,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No candidates found for this seat" });
       }
       
-      console.log(`Generating roasts for all ${candidates.length} candidates in ${seat.name}...`);
+      console.log(`Generating commentaries for all ${candidates.length} candidates in ${seat.name}...`);
       
       // Import the xAI service
       const { default: xaiService } = await import('./services/xaiService');
       
-      // Generate roasts for each candidate
-      const roastResults: Record<number, string> = {};
+      // Generate commentaries for each candidate
+      const commentaryResults: Record<number, string> = {};
       
       for (const candidate of candidates) {
-        console.log(`Generating roast for ${candidate.name}...`);
+        console.log(`Generating commentary for ${candidate.name}...`);
         
-        // Check if roast already exists
-        let existingRoast = await storage.getRoastByCandidate(candidate.id);
+        // Check if commentary already exists
+        let existingCommentary = await storage.getRoastByCandidate(candidate.id);
         
-        if (!existingRoast) {
-          // Generate a new roast if one doesn't exist
+        if (!existingCommentary) {
+          // Generate a new commentary if one doesn't exist
           const fullContent = await xaiService.generateCandidateRoast(candidate);
           
           if (fullContent) {
@@ -199,23 +199,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const content = fullContent.split('\n')[0] || fullContent.substring(0, 100);
             
             // Save to database
-            const roast = await storage.createRoast({
+            const commentary = await storage.createRoast({
               candidateId: candidate.id,
               content,
               fullContent,
             });
             
-            roastResults[candidate.id] = content;
+            commentaryResults[candidate.id] = content;
           }
         } else {
-          roastResults[candidate.id] = existingRoast.content;
+          commentaryResults[candidate.id] = existingCommentary.content;
         }
       }
       
       res.json({
         seatId,
         seatName: seat.name,
-        roasts: roastResults
+        commentaries: commentaryResults
       });
     } catch (error) {
       console.error("Error generating roasts:", error);
