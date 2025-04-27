@@ -269,21 +269,11 @@ export async function processCandidatePerplexityData(
       Here's the raw data:
       ${rawData}
       
-      Please synthesize this information into a witty, satirical commentary about the candidate 
-      that roasts them in good Aussie political humor style. The commentary should:
-      
-      - Be approximately 250-300 words
-      - Use authentic Australian political humor and expressions
-      - Include references to their policies and background from the data
-      - Be cheeky but not mean-spirited
-      - Start with a strong opener that captures their essence
-      
-      Focus on making this humorous while incorporating the real information from the data.
-    `;
+      Create an Aussie style summary of the candidate using this data. Really take the piss out them and their policies`;
 
     // Make the request to xAI
     const response = await openai.chat.completions.create({
-      model: "grok-2-1212", // Using the text model
+      model: "grok-3-fast-latest", // Using the text model
       messages: [
         {
           role: "user",
@@ -323,24 +313,27 @@ ${processedContent.substring(0, 300)}...`);
  */
 export async function generateCaricatureImage(
   candidate: Candidate,
-  description?: string
+  description?: string,
 ): Promise<string | null> {
   try {
-    console.log(`Generating caricature image for ${candidate.name} using xAI...`);
-    
+    console.log(
+      `Generating caricature image for ${candidate.name} using xAI...`,
+    );
+
     // Create a detailed prompt for xAI focused on Australian political humor
-    const policyStr = candidate.keyPolicies && candidate.keyPolicies.length > 0 
-      ? `Key policies: ${candidate.keyPolicies.join(', ')}.` 
-      : '';
-    
+    const policyStr =
+      candidate.keyPolicies && candidate.keyPolicies.length > 0
+        ? `Key policies: ${candidate.keyPolicies.join(", ")}.`
+        : "";
+
     const enhancedPrompt = `
       Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
-      from the ${candidate.partyBallotName || 'Independent'} party.
+      from the ${candidate.partyBallotName || "Independent"} party.
       
       ${policyStr}
       
-      ${candidate.isIncumbent ? 'They are the current incumbent MP.' : ''}
-      ${candidate.bio ? 'Bio excerpt: ' + candidate.bio.substring(0, 150) : ''}
+      ${candidate.isIncumbent ? "They are the current incumbent MP." : ""}
+      ${candidate.bio ? "Bio excerpt: " + candidate.bio.substring(0, 150) : ""}
       
       Style: Australian political cartoon with exaggerated features, bright colors, clean lines,
       similar to cartoons from The Australian, Sydney Morning Herald, or The Betoota Advocate.
@@ -354,58 +347,71 @@ export async function generateCaricatureImage(
       
       Format: Digital illustration with white background, clean and shareable
     `;
-    
+
     // Generate the image using xAI's image generation model
     const response = await fetch("https://api.x.ai/v1/images/generations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.XAI_API_KEY}`
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
       },
       body: JSON.stringify({
         prompt: enhancedPrompt.trim(),
         model: "grok-2-vision-1212", // Using the latest model for image generation
         n: 1,
-        size: "1024x1024"
-      })
+        size: "1024x1024",
+      }),
     });
-    
+
     const data = await response.json();
     console.log(`xAI image generation response status: ${response.status}`);
-    
+
     // Type guard to check if response data has the expected structure
     interface XAIImageResponse {
-      data: Array<{url: string}>;
+      data: Array<{ url: string }>;
     }
 
     function isValidImageResponse(data: any): data is XAIImageResponse {
-      return data && 
-        typeof data === 'object' && 
-        Array.isArray(data.data) && 
-        data.data.length > 0 && 
-        typeof data.data[0].url === 'string';
+      return (
+        data &&
+        typeof data === "object" &&
+        Array.isArray(data.data) &&
+        data.data.length > 0 &&
+        typeof data.data[0].url === "string"
+      );
     }
 
     // Get the image URL from the response
     if (isValidImageResponse(data)) {
-      console.log(`Successfully generated caricature image for ${candidate.name} using xAI`);
-      
+      console.log(
+        `Successfully generated caricature image for ${candidate.name} using xAI`,
+      );
+
       // Fetch the image from the URL and convert to base64
       try {
         const imageResponse = await fetch(data.data[0].url);
         const imageBuffer = await imageResponse.arrayBuffer();
-        const base64Image = Buffer.from(imageBuffer).toString('base64');
+        const base64Image = Buffer.from(imageBuffer).toString("base64");
         return base64Image;
       } catch (fetchError) {
-        console.error(`Error fetching image for ${candidate.name}:`, fetchError);
+        console.error(
+          `Error fetching image for ${candidate.name}:`,
+          fetchError,
+        );
         return null;
       }
     } else {
-      console.error(`No image URL returned for ${candidate.name} from xAI:`, data);
+      console.error(
+        `No image URL returned for ${candidate.name} from xAI:`,
+        data,
+      );
       return null;
     }
   } catch (error) {
-    console.error(`Error generating caricature image for ${candidate.name}:`, error);
+    console.error(
+      `Error generating caricature image for ${candidate.name}:`,
+      error,
+    );
     return null;
   }
 }
@@ -416,5 +422,5 @@ export default {
   answerCandidateQuestion,
   generateCampaignActivities,
   processCandidatePerplexityData,
-  generateCaricatureImage
+  generateCaricatureImage,
 };

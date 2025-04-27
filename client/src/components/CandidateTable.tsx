@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, User, Loader2 } from "lucide-react";
+import { ChevronRight, User, Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +53,7 @@ const CandidateTable = ({
   const [generatingCaricature, setGeneratingCaricature] = useState<
     number | null
   >(null);
+  const [commentariesState, setCommentaries] = useState<Record<number, string>>({});
 
   // Fetch candidates for the electoral seat
   const {
@@ -212,16 +213,37 @@ const CandidateTable = ({
 
             {/* Commentary */}
             <div className="mb-4">
-              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">
-                Aussie-Style Commentary
-              </h4>
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Overview
+                </h4>
+                {commentaries[candidate.id] && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => {
+                      // Only need to trigger a regeneration of this specific candidate on the server
+                      fetch(`/api/candidates/${candidate.id}/regenerate-commentary`, {
+                        method: "POST"
+                      }).then(() => {
+                        // Force a refresh of the commentaries
+                        refetchCommentaries();
+                      });
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Regenerate</span>
+                  </Button>
+                )}
+              </div>
               {isGeneratingCommentary && !commentaries[candidate.id] ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-4/5" />
                   <div className="flex items-center space-x-2 text-xs text-blue-600">
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Generating commentary...</span>
+                    <span>Generating overview...</span>
                   </div>
                 </div>
               ) : commentaries[candidate.id] ? (
@@ -230,7 +252,7 @@ const CandidateTable = ({
                 </div>
               ) : (
                 <span className="text-gray-500 text-sm">
-                  Commentary will be generated automatically
+                  Overview will be generated automatically
                 </span>
               )}
             </div>

@@ -8,7 +8,9 @@ import {
   ElectoralSeat,
   electoralSeats,
   localities,
+  aiRoasts,
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import {
   ensureCandidatesForSeat,
   generateCandidateData,
@@ -432,6 +434,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate commentary for a specific candidate
+  app.post("/api/candidates/:id/regenerate-commentary", async (req: Request, res: Response) => {
+    try {
+      const candidateId = parseInt(req.params.id, 10);
+      
+      if (isNaN(candidateId)) {
+        return res.status(400).json({ message: "Invalid candidate ID" });
+      }
+      
+      const candidate = await storage.getCandidateById(candidateId);
+      if (!candidate) {
+        return res.status(404).json({ message: "Candidate not found" });
+      }
+      
+      // Get existing roast to delete
+      const existingRoast = await storage.getRoastByCandidate(candidateId);
+      
+      // Delete the existing roast if it exists (in a real DB you'd use proper API)
+      if (existingRoast) {
+        await db.delete(aiRoasts).where(eq(aiRoasts.candidateId, candidateId));
+      }
+      
+      // Fetch seat data for context
+      const seat = await storage.getElectoralSeatById(candidate.electoralSeatId);
+      if (!seat) {
+        return res.status(404).json({ message: "Electoral seat not found" });
+      }
+      
+      // Fetch party info for context
+      let partyName = "Independent";
+      if (candidate.partyId) {
+        const party = await storage.getPartyById(candidate.partyId);
+        if (party) {
+          partyName = party.name;
+        }
+      }
+      
+      // Generate new commentary using the generateCandidateData function
+      console.log(`Regenerating commentary for ${candidate.name}...`);
+      
+      // First, get party name for better context
+      let partyName = "Independent";
+      if (candidate.partyId) {
+        const party = await storage.getPartyById(candidate.partyId);
+        if (party) {
+          partyName = party.name;
+        }
+      }
+      
+      // Import the services we need
+      const { default: perplexityService } = await import("./services/perplexityService");
+      const { default: xaiService } = await import("./services/xaiService");
+
+      // Get raw data from Perplexity
+      console.log(`Getting fresh data for ${candidate.name} from Perplexity...`);
+      const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
+      
+      // Process with xAI
+      console.log(`Processing data with xAI for ${candidate.name}...`);
+      const fullContent = await xaiService.processCandidatePerplexityData(
+        candidate.name,
+        partyName,
+        rawData
+      );
+      
+      // Create a truncated version for the card view
+      const content = fullContent.includes('\n') 
+        ? fullContent.split('\n')[0] 
+        : fullContent.substring(0, 300);
+      
+      // Create new roast
+      await storage.createRoast({
+        candidateId: candidate.id,
+        content,
+        fullContent,
+      });
+      
+      // Return success
+      res.json({ 
+        success: true, 
+        message: `Commentary for ${candidate.name} is being regenerated` 
+      });
+    } catch (error) {
+      console.error("Error regenerating commentary:", error);
+      res.status(500).json({ message: "Failed to regenerate commentary" });
+    }
+  });
+  
   // Q&A API
   app.post("/api/candidates/:id/ask", async (req: Request, res: Response) => {
     try {
