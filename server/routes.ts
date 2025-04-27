@@ -122,8 +122,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get roasts for candidates in a specific electoral seat
-  app.get("/api/seats/:seatId/roasts", async (req: Request, res: Response) => {
+  // Get commentaries for candidates in a specific electoral seat
+  app.get("/api/seats/:seatId/commentaries", async (req: Request, res: Response) => {
     try {
       const seatId = parseInt(req.params.seatId, 10);
       
@@ -138,19 +138,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({});
       }
       
-      // Create a map of candidate ID to roast content
-      const roastMap: Record<number, string> = {};
+      // Create a map of candidate ID to commentary content
+      const commentaryMap: Record<number, string> = {};
       
       for (const candidate of candidates) {
-        const roast = await storage.getRoastByCandidate(candidate.id);
-        if (roast) {
-          roastMap[candidate.id] = roast.content;
+        const commentary = await storage.getRoastByCandidate(candidate.id);
+        if (commentary) {
+          commentaryMap[candidate.id] = commentary.content;
         }
       }
       
-      res.json(roastMap);
+      res.json(commentaryMap);
     } catch (error) {
-      console.error("Error fetching roasts for seat:", error);
+      console.error("Error fetching commentaries for seat:", error);
       res.status(500).json({ message: "Server error" });
     }
   });

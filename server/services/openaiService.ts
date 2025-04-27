@@ -56,7 +56,8 @@ export async function generateCaricatureImage(
       n: 1,
       size: "1024x1024",
       quality: "standard",
-      style: "vivid"
+      style: "vivid",
+      // DALL-E 3 doesn't support b64_json format anymore, so we'll fetch the image from the URL
     });
     
     // Get the image URL from the response

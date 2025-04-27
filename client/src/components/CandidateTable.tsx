@@ -50,7 +50,7 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
 
   // Fetch candidate commentaries from the API
   const { data: commentaries = {} } = useQuery<Record<number, string>>({
-    queryKey: [`/api/seats/${seatId}/roasts`],
+    queryKey: [`/api/seats/${seatId}/commentaries`],
     enabled: !!seatId && !!candidates?.length,
     initialData: {},
   });
