@@ -34,7 +34,14 @@ export async function ensureCandidatesForSeat(seatId: number): Promise<void> {
       p.shortName?.toLowerCase() === seat.currentParty!.toLowerCase()
     );
 
+    // Split name into parts for surname and givenName
+    const nameParts = seat.currentMp.split(' ');
+    const surname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0];
+    const givenName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : '';
+
     candidatesToCreate.push({
+      surname,
+      givenName,
       name: seat.currentMp,
       partyId: party?.id,
       isIndependent: seat.currentParty.toLowerCase() === 'independent',
@@ -77,6 +84,8 @@ export async function ensureCandidatesForSeat(seatId: number): Promise<void> {
     ];
     
     candidatesToCreate.push({
+      surname: lastName,
+      givenName: firstName,
       name: fullName,
       partyId,
       isIndependent: false,
@@ -105,6 +114,8 @@ export async function ensureCandidatesForSeat(seatId: number): Promise<void> {
     const fullName = `${firstName} ${lastName}`;
     
     candidatesToCreate.push({
+      surname: lastName,
+      givenName: firstName,
       name: fullName,
       partyId: independentParty?.id,
       isIndependent: true,
