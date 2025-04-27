@@ -15,6 +15,7 @@ import {
 } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
 import xaiService from "./services/xaiService";
+import openaiService from "./services/openaiService";
 import {
   searchSeatsByPostcode,
   initializePostcodeMapping,
@@ -230,19 +231,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Candidate not found" });
       }
 
-      // Generate the caricature using xAI
+      // Step 1: Generate the caricature description using xAI's Grok
       console.log(`Generating caricature for candidate ${candidate.name}...`);
       const caricatureDescription = await xaiService.generateCandidateCaricature(candidate);
 
       if (!caricatureDescription) {
-        return res.status(500).json({ message: "Failed to generate caricature" });
+        return res.status(500).json({ message: "Failed to generate caricature description" });
       }
 
-      // Return the generated description
+      // Step 2: Generate an image based on the description using OpenAI's GPT vision model
+      console.log(`Generating caricature image for ${candidate.name} using GPT vision model...`);
+      const imageData = await openaiService.generateCaricatureImage(candidate, caricatureDescription);
+
+      // Return both the generated description and the image (if available)
       res.json({ 
         candidateId, 
         name: candidate.name,
-        description: caricatureDescription 
+        description: caricatureDescription,
+        imageData: imageData || null
       });
     } catch (error) {
       console.error("Error generating caricature:", error);

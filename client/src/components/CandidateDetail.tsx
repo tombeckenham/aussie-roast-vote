@@ -12,6 +12,7 @@ interface CandidateDetailProps {
 const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
   const [question, setQuestion] = useState("");
   const [caricatureDescription, setCaricatureDescription] = useState<string | null>(null);
+  const [caricatureImage, setCaricatureImage] = useState<string | null>(null);
   const [generatingCaricature, setGeneratingCaricature] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -52,9 +53,12 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
     },
     onSuccess: (data) => {
       setCaricatureDescription(data.description);
+      setCaricatureImage(data.imageData);
       toast({
         title: "Caricature generated!",
-        description: "Check out the humorous caricature description below.",
+        description: data.imageData ? 
+          "Check out the humorous caricature image and description below." : 
+          "Check out the humorous caricature description below.",
       });
       setGeneratingCaricature(false);
     },
@@ -236,7 +240,7 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
           {/* Caricature Section */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-3">
-              <h5 className="font-heading font-semibold text-xl">Caricature Description</h5>
+              <h5 className="font-heading font-semibold text-xl">Caricature</h5>
               <button 
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center"
                 onClick={() => generateCaricatureMutation.mutate()}
@@ -250,26 +254,55 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
                   "Generate Caricature"}
               </button>
             </div>
-            <div className="bg-light-bg rounded-lg p-4">
-              {caricatureDescription ? (
-                <div className="space-y-3 text-base">
-                  {caricatureDescription.split('\n').map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center italic">
-                  {generatingCaricature ? 
-                    "AI is creating a caricature description... This might take a moment." : 
-                    "Click 'Generate Caricature' to create a humorous description of this candidate in Australian style."}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Caricature image display */}
+              {caricatureImage && (
+                <div className="bg-white rounded-lg p-4 shadow-md flex flex-col items-center">
+                  <h6 className="font-heading font-semibold text-lg mb-3 text-center">Visual Caricature</h6>
+                  <img 
+                    src={`data:image/png;base64,${caricatureImage}`}
+                    alt={`${candidate.name} caricature`}
+                    className="rounded-lg max-w-full h-auto shadow-md mb-2"
+                  />
+                  <p className="text-xs mt-2 text-center opacity-75">
+                    Generated using OpenAI's GPT-4 Vision model
+                  </p>
                 </div>
               )}
-              {caricatureDescription && (
-                <p className="text-xs mt-4 text-center opacity-75">
-                  Generated using x.ai's Grok model - Note: This is a textual description only, not an actual image
-                </p>
-              )}
+              
+              {/* Description display */}
+              <div className={`bg-light-bg rounded-lg p-4 ${!caricatureImage ? 'col-span-2' : ''}`}>
+                <h6 className="font-heading font-semibold text-lg mb-3">Description</h6>
+                {caricatureDescription ? (
+                  <div className="space-y-3 text-base">
+                    {caricatureDescription.split('\n').map((paragraph, index) => (
+                      <p key={index}>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center italic">
+                    {generatingCaricature ? 
+                      "AI is creating a caricature description... This might take a moment." : 
+                      "Click 'Generate Caricature' to create a humorous description of this candidate in Australian style."}
+                  </div>
+                )}
+                {caricatureDescription && (
+                  <p className="text-xs mt-4 text-center opacity-75">
+                    Generated using x.ai's Grok model
+                  </p>
+                )}
+              </div>
             </div>
+            
+            {generatingCaricature && (
+              <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-lg text-center">
+                <p className="text-sm">
+                  <span className="font-bold">Please wait:</span> Generating both text descriptions and images 
+                  can take 30-45 seconds. The GPT-4 Vision model requires extra time to create a detailed caricature.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Campaign Trail Section */}
