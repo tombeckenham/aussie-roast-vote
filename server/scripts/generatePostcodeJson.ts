@@ -1,0 +1,84 @@
+/**
+ * Script to generate a postcode-to-electorate mapping JSON file from the AEC CSV data
+ * This creates a simple lookup map for use in the search functionality
+ */
+import fs from 'fs';
+import path from 'path';
+import { parse } from 'csv-parse/sync';
+
+// Path to the CSV file
+const CSV_FILE_PATH = './server/data/postcodes-to-divisions.csv';
+// Output JSON file path
+const JSON_OUTPUT_PATH = './server/data/postcode-electorate-map.json';
+
+async function generatePostcodeJson() {
+  try {
+    console.log('Reading CSV file...');
+    
+    // Read the CSV file
+    const csvData = fs.readFileSync(CSV_FILE_PATH, 'utf8');
+    
+    // Parse the CSV data - format is "state;postcode;locality;division"
+    const records = parse(csvData, {
+      delimiter: ';',
+      columns: true,
+      skip_empty_lines: true
+    });
+    
+    console.log(`Parsed ${records.length} records from CSV file`);
+    
+    // Build a mapping of postcode to division names
+    const postcodeMap: Record<string, string[]> = {};
+    
+    records.forEach((record: any) => {
+      const postcode = record.postcode;
+      const division = record.division;
+      
+      if (postcode && division) {
+        if (!postcodeMap[postcode]) {
+          postcodeMap[postcode] = [];
+        }
+        
+        // Add the division if it's not already in the array
+        if (!postcodeMap[postcode].includes(division)) {
+          postcodeMap[postcode].push(division);
+        }
+      }
+    });
+    
+    // Calculate some stats
+    const postcodeCount = Object.keys(postcodeMap).length;
+    const mappingCount = Object.values(postcodeMap).flat().length;
+    
+    console.log(`Generated mapping with ${postcodeCount} postcodes and ${mappingCount} total mappings`);
+    
+    // Write the JSON file
+    const jsonData = JSON.stringify(postcodeMap, null, 2);
+    fs.writeFileSync(JSON_OUTPUT_PATH, jsonData);
+    
+    console.log(`Successfully wrote mapping to ${JSON_OUTPUT_PATH}`);
+    
+    // Print a few examples for verification
+    const samplePostcodes = ['2000', '2087', '2600', '3000', '4000', '5000'];
+    console.log('\nSample mappings:');
+    samplePostcodes.forEach(postcode => {
+      if (postcodeMap[postcode]) {
+        console.log(`Postcode ${postcode} → ${postcodeMap[postcode].join(', ')}`);
+      }
+    });
+  } catch (error) {
+    console.error('Error generating postcode JSON:', error);
+    process.exit(1);
+  }
+}
+
+// Run the function
+generatePostcodeJson()
+  .then(() => {
+    console.log('Script completed successfully');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('Script failed:', error);
+    process.exit(1);
+  });
