@@ -1,8 +1,8 @@
 import { Link } from "wouter";
 
 const Header = () => {
-  // Calculate days until election (May 17, 2025)
-  const electionDate = new Date("2025-05-17");
+  // Calculate days until election (May 3, 2025)
+  const electionDate = new Date("2025-05-03");
   const today = new Date();
   const daysToElection = Math.ceil(
     (electionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
@@ -30,7 +30,7 @@ const Header = () => {
                 <circle cx="50" cy="50" r="15" fill="#FFCD00" />
               </svg>
               <h1 className="font-heading font-bold text-2xl md:text-3xl">
-                Aussie<span className="text-aussie-gold">Roast</span>Politics
+                Aussie <span className="text-aussie-gold">How-to-vote</span>
               </h1>
             </div>
           </Link>
@@ -49,7 +49,7 @@ const Header = () => {
       <div className="bg-dark-text py-2">
         <div className="container mx-auto px-4 md:px-6">
           <p className="text-white text-sm text-center md:text-left">
-            Election Day: <span className="font-bold">May 17, 2025</span> - Only{" "}
+            Election Day: <span className="font-bold">May 3, 2025</span> - Only{" "}
             <span className="font-bold text-aussie-gold">{daysToElection}</span>{" "}
             days to go!
           </p>
