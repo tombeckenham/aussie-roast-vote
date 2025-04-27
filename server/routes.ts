@@ -7,8 +7,11 @@ import {
 } from "@shared/schema";
 import { ensureCandidatesForSeat, generateCandidateData } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
+import { searchSeatsByPostcode, initializePostcodeMapping } from "./services/postcodeService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize postcode mapping service
+  initializePostcodeMapping();
   // API routes for electoral data
   app.get("/api/seats", async (req: Request, res: Response) => {
     try {
@@ -24,12 +27,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { query, postcode } = req.query;
       
       if (postcode) {
-        const seats = await storage.searchElectoralSeatsByPostcode(postcode as string);
+        // Use the new postcode lookup service
+        const seats = await searchSeatsByPostcode(postcode as string);
+        console.log(`Searched for postcode ${postcode}, found ${seats.length} seats`);
         return res.json(seats);
       }
       
       if (query) {
         const seats = await storage.searchElectoralSeatsByName(query as string);
+        console.log(`Searched for query ${query}, found ${seats.length} seats`);
         return res.json(seats);
       }
       
@@ -37,6 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const seats = await storage.getElectoralSeats();
       res.json(seats);
     } catch (error) {
+      console.error("Error searching seats:", error);
       res.status(500).json({ message: "Failed to search electoral seats" });
     }
   });

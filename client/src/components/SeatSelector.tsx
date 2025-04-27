@@ -13,8 +13,11 @@ interface ElectoralSeat {
   state: string;
 }
 
+type SearchMode = 'name' | 'postcode';
+
 const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>('name');
 
   // Query electoral seats
   const { data: seats, isLoading } = useQuery<ElectoralSeat[]>({
@@ -32,8 +35,24 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     
     try {
       setIsSearching(true);
+      
+      // Build the search URL based on search mode
+      let searchUrl = '';
+      if (searchMode === 'postcode') {
+        // Australian postcodes are 4 digits
+        const isPostcode = /^\d{4}$/.test(searchTerm);
+        searchUrl = `/api/seats/search?postcode=${encodeURIComponent(searchTerm)}`;
+        
+        // If it doesn't look like a postcode, use the query parameter instead
+        if (!isPostcode) {
+          searchUrl = `/api/seats/search?query=${encodeURIComponent(searchTerm)}`;
+        }
+      } else {
+        searchUrl = `/api/seats/search?query=${encodeURIComponent(searchTerm)}`;
+      }
+      
       // Directly fetch search results
-      const res = await fetch(`/api/seats/search?query=${encodeURIComponent(searchTerm)}`);
+      const res = await fetch(searchUrl);
       if (!res.ok) throw new Error("Failed to search seats");
       
       const results = await res.json();
