@@ -358,21 +358,25 @@ export async function generateCaricatureImage(
       },
       body: JSON.stringify({
         prompt: enhancedPrompt.trim(),
-        model: "grok-2-vision-1212", // Using the latest model for image generation
+        model: "grok-2-image", // Using the latest model for image generation
         n: 1,
         // Removed size parameter because it's not supported by xAI API
       }),
     });
 
     if (!response.ok) {
-      console.error(`xAI image generation failed with status: ${response.status}`);
+      console.error(
+        `xAI image generation failed with status: ${response.status}`,
+      );
       const errorData = await response.json();
-      console.error('Error details:', errorData);
+      console.error("Error details:", errorData);
       throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
     }
-    
+
     const data = await response.json();
-    console.log(`xAI image generation response status: ${response.status} - Success`);
+    console.log(
+      `xAI image generation response status: ${response.status} - Success`,
+    );
 
     // Type guard to check if response data has the expected structure
     interface XAIImageResponse {

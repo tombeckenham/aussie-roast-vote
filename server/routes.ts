@@ -446,7 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           body: JSON.stringify({
             prompt: enhancedPrompt.trim(),
-            model: "grok-2-vision-1212", // Using the latest model for image generation
+            model: "grok-2-image", // Using the latest model for image generation
             n: 1
           }),
         });

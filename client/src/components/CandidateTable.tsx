@@ -155,7 +155,7 @@ const CandidateTable = ({
       {sortedCandidates.map((candidate) => (
         <Card
           key={candidate.id}
-          className={candidate.isIncumbent ? "border-aussie-gold border-2" : ""}
+          className={`${candidate.isIncumbent ? "border-aussie-gold border-2" : ""} min-h-[650px] flex flex-col`}
         >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -187,28 +187,26 @@ const CandidateTable = ({
           </CardHeader>
 
           <CardContent>
+
+
             {/* Key Policies */}
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">
-                Key Policy Focus
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">
+                Key Policies
               </h4>
-              <div className="flex flex-wrap gap-1">
+              <ul className="list-disc pl-5 text-gray-700 text-xs space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
-                  candidate.keyPolicies.slice(0, 3).map((policy, index) => (
-                    <Badge
-                      key={index}
-                      variant="outline"
-                      className="bg-gray-100"
-                    >
-                      {policy}
-                    </Badge>
+                  candidate.keyPolicies.slice(0, 3).map((policy, idx) => (
+                    <li key={idx}>{policy}</li>
                   ))
                 ) : (
-                  <span className="text-gray-500 text-sm">
-                    No policies listed
-                  </span>
+                  <>
+                    <li>Policy information unavailable</li>
+                    <li>Check candidate website for details</li>
+                    <li>View full profile for more information</li>
+                  </>
                 )}
-              </div>
+              </ul>
             </div>
 
             {/* Commentary */}
@@ -247,7 +245,7 @@ const CandidateTable = ({
                   </div>
                 </div>
               ) : commentaries[candidate.id] ? (
-                <div className="text-sm py-2 border-l-2 pl-3 border-l-aussie-green/40 italic">
+                <div className="text-sm py-2 border-l-2 pl-3 border-l-aussie-green/40 overflow-y-auto max-h-[350px] text-gray-700">
                   {commentaries[candidate.id]}
                 </div>
               ) : (
