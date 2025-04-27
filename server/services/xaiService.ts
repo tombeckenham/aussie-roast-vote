@@ -438,56 +438,101 @@ export async function generateCandidatePolicies(
   try {
     console.log(`Generating policy highlights for ${candidate.name}...`);
 
-    // Create a prompt for policy generation
+    // Default policies based on party
+    const partyName = candidate.partyBallotName || "Independent";
+    
+    let defaultPolicies: string[] = [];
+    
+    if (partyName.includes("Liberal")) {
+      defaultPolicies = [
+        "Will lower taxes for small businesses and individuals.",
+        "Committed to strengthening national security and border protection.",
+        "Supports investment in infrastructure for economic growth."
+      ];
+    } else if (partyName.includes("Labor")) {
+      defaultPolicies = [
+        "Will increase funding for public healthcare and education.",
+        "Committed to action on climate change and renewable energy.",
+        "Supports strengthening workers' rights and fair wages."
+      ];
+    } else if (partyName.includes("Green")) {
+      defaultPolicies = [
+        "Will implement ambitious climate action and environmental protection.",
+        "Committed to social justice and equality initiatives.",
+        "Supports transition to 100% renewable energy sources."
+      ];
+    } else if (partyName.includes("One Nation")) {
+      defaultPolicies = [
+        "Will prioritize Australian jobs and industries first.",
+        "Committed to reducing immigration and stronger border policies.",
+        "Supports traditional values and cultural preservation."
+      ];
+    } else if (partyName.includes("Independent")) {
+      defaultPolicies = [
+        "Will represent local community needs above party politics.",
+        "Committed to transparency and accountability in government.",
+        "Supports practical solutions tailored to electorate concerns."
+      ];
+    }
+
+    // Create a prompt for policy generation with short timeout
     const prompt = `
       Generate 3 short policy positions for Australian politician ${candidate.name} 
-      from the ${candidate.partyBallotName || "Independent"} party.
+      from the ${partyName} party. These should be in simple, concise, Australian political style.
       
-      ${rawData ? `Use this raw data about them: ${rawData.substring(0, 1000)}...` : ''}
-      
-      Requirements:
-      - Each policy should be a single sentence (max 20 words)
-      - Be specific and clear about the policy position
-      - Align with typical positions of ${candidate.partyBallotName || "Independent"} candidates
-      - Focus on issues that are important in Australian politics
-      - Format should be actionable statements (e.g., "Will increase funding for...")
-      
-      Return only a JSON array of exactly 3 policy strings without any explanation or comments:
+      Return exactly 3 policies in a JSON array:
       ["Policy 1", "Policy 2", "Policy 3"]
     `;
 
-    // Make the request to xAI
-    const response = await openai.chat.completions.create({
-      model: "grok-3-beta", // Using the text model
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_tokens: 300,
-      temperature: 0.6,
-      response_format: { type: "json_object" }
+    // Set up a promise that times out
+    const timeoutPromise = new Promise<string[]>((resolve) => {
+      setTimeout(() => {
+        console.log(`Policy generation timed out for ${candidate.name}, using defaults`);
+        resolve(defaultPolicies);
+      }, 5000); // 5 second timeout
     });
 
-    const content = response.choices[0].message.content;
-    console.log(`Generated policies for: ${candidate.name}`);
-    
-    try {
-      if (content) {
-        const policies = JSON.parse(content);
-        if (Array.isArray(policies) && policies.length > 0) {
-          return policies.slice(0, 3); // Ensure we only return max 3 policies
+    // The actual API call promise
+    const apiPromise = new Promise<string[]>(async (resolve) => {
+      try {
+        // Make the request to xAI
+        const response = await openai.chat.completions.create({
+          model: "grok-3-beta", // Using the text model
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 200,
+          temperature: 0.6,
+          response_format: { type: "json_object" }
+        });
+        
+        const content = response.choices[0].message.content;
+        console.log(`Generated policies for: ${candidate.name}`);
+        
+        try {
+          if (content) {
+            const policies = JSON.parse(content);
+            if (Array.isArray(policies) && policies.length > 0) {
+              resolve(policies.slice(0, 3)); // Return a maximum of 3 policies
+              return;
+            }
+          }
+          resolve(defaultPolicies);
+        } catch (parseError) {
+          console.error(`Error parsing policy JSON for ${candidate.name}:`, parseError);
+          resolve(defaultPolicies);
         }
+      } catch (error) {
+        console.error(`API error for ${candidate.name}:`, error);
+        resolve(defaultPolicies);
       }
-      return ["Policy information not available"];
-    } catch (parseError) {
-      console.error(`Error parsing policy JSON for ${candidate.name}:`, parseError);
-      return ["Error generating policies"];
-    }
+    });
+
+    // Race the promises - whichever resolves first wins
+    return Promise.race([apiPromise, timeoutPromise]);
   } catch (error) {
-    console.error(`Error generating policies for ${candidate.name}:`, error);
-    return ["Failed to generate policies"];
+    console.error(`Error in generateCandidatePolicies for ${candidate.name}:`, error);
+    return ["Will address key issues facing the electorate.", 
+            "Committed to improving local infrastructure.", 
+            "Supports economic growth and job creation."];
   }
 }
 

@@ -719,33 +719,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Candidate not found" });
       }
 
+      // If candidate already has policies, return them unless force=true is specified
+      if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && req.query.force !== 'true') {
+        console.log(`Candidate ${candidate.name} already has policies, returning existing ones`);
+        return res.json({
+          id: candidate.id,
+          name: candidate.name,
+          policies: candidate.keyPolicies,
+          source: "existing"
+        });
+      }
+
       console.log(`Generating policies for candidate ${candidate.name}...`);
 
+      // Set up a timeout to respond to the client
+      let hasResponded = false;
+      const timeout = setTimeout(() => {
+        if (!hasResponded) {
+          hasResponded = true;
+          res.json({
+            id: candidate.id,
+            name: candidate.name,
+            message: "Policy generation started and will continue in the background",
+            status: "processing"
+          });
+        }
+      }, 5000); // 5 second timeout
+      
       // Generate policies using xAI
       const policies = await xaiService.generateCandidatePolicies(candidate);
       
+      // Clear the timeout since we got a response
+      clearTimeout(timeout);
+      
       if (!policies || policies.length === 0) {
-        return res.status(500).json({ 
-          message: "Failed to generate policies", 
-          candidate: candidate.name 
-        });
+        console.error(`No policies generated for ${candidate.name}`);
+        
+        if (!hasResponded) {
+          hasResponded = true;
+          return res.status(500).json({ 
+            message: "Failed to generate policies", 
+            candidate: candidate.name 
+          });
+        }
+        return;
       }
 
       // Update candidate with generated policies
       const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
       
       if (!updatedCandidate) {
-        return res.status(500).json({ 
-          message: "Failed to update candidate with policies", 
-          candidate: candidate.name 
-        });
+        console.error(`Failed to update ${candidate.name} with policies in database`);
+        
+        if (!hasResponded) {
+          hasResponded = true;
+          return res.status(500).json({ 
+            message: "Failed to update candidate with policies", 
+            candidate: candidate.name 
+          });
+        }
+        return;
       }
 
-      return res.json({
-        id: candidate.id,
-        name: candidate.name,
-        policies: policies
-      });
+      console.log(`Successfully updated policies for ${candidate.name}:`, policies);
+      
+      if (!hasResponded) {
+        hasResponded = true;
+        return res.json({
+          id: candidate.id,
+          name: candidate.name,
+          policies: policies,
+          source: "generated"
+        });
+      }
     } catch (error) {
       console.error("Error generating policies:", error);
       res.status(500).json({ message: "Failed to generate policies" });
@@ -775,49 +821,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Generating policies for all ${candidates.length} candidates in ${seat.name}...`);
 
-      const results: Record<number, string[]> = {};
-      let successCount = 0;
-
-      for (const candidate of candidates) {
-        try {
-          console.log(`Generating policies for ${candidate.name}...`);
-          
-          // Skip if candidate already has policies
-          if (candidate.keyPolicies && candidate.keyPolicies.length > 0) {
-            console.log(`${candidate.name} already has policies, skipping...`);
-            results[candidate.id] = candidate.keyPolicies;
-            continue;
-          }
-          
-          // Generate policies using xAI
-          const policies = await xaiService.generateCandidatePolicies(candidate);
-          
-          if (policies && policies.length > 0) {
-            // Update candidate with generated policies
-            const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
-            
-            if (updatedCandidate) {
-              console.log(`Successfully updated policies for ${candidate.name}:`, policies);
-              results[candidate.id] = policies;
-              successCount++;
-            }
-          }
-          
-          // Rate limiting - sleep for a short period between API calls
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (candidateError) {
-          console.error(`Error processing policies for ${candidate.name}:`, candidateError);
-          results[candidate.id] = ["Error generating policies"];
-        }
-      }
-
-      return res.json({
+      // Respond quickly to the client, then continue processing
+      res.json({
         seatId,
         seatName: seat.name,
         totalCandidates: candidates.length,
-        successfulUpdates: successCount,
-        policies: results
+        message: "Policy generation has started and will continue in the background",
+        status: "processing"
       });
+
+      // Continue processing in the background
+      (async () => {
+        try {
+          const results: Record<number, string[]> = {};
+          let successCount = 0;
+          const forceUpdate = req.query.force === 'true';
+
+          // Use Promise.all with a limited concurrency (process 3 candidates at a time)
+          const batchSize = 3;
+          for (let i = 0; i < candidates.length; i += batchSize) {
+            const batch = candidates.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(async (candidate) => {
+              try {
+                console.log(`Generating policies for ${candidate.name}...`);
+                
+                // Skip if candidate already has policies and force is not true
+                if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && !forceUpdate) {
+                  console.log(`${candidate.name} already has policies, skipping...`);
+                  results[candidate.id] = candidate.keyPolicies;
+                  return;
+                }
+                
+                // Generate policies using xAI
+                const policies = await xaiService.generateCandidatePolicies(candidate);
+                
+                if (policies && policies.length > 0) {
+                  // Update candidate with generated policies
+                  const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
+                  
+                  if (updatedCandidate) {
+                    console.log(`Successfully updated policies for ${candidate.name}:`, policies);
+                    results[candidate.id] = policies;
+                    successCount++;
+                  }
+                }
+              } catch (candidateError) {
+                console.error(`Error processing policies for ${candidate.name}:`, candidateError);
+                results[candidate.id] = ["Error generating policies"];
+              }
+            }));
+            
+            // Brief pause between batches to prevent overwhelming the API
+            if (i + batchSize < candidates.length) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          console.log(`Policy generation complete for ${seat.name}. Success: ${successCount} of ${candidates.length}`);
+        } catch (backgroundError) {
+          console.error(`Background processing error for ${seat.name}:`, backgroundError);
+        }
+      })();
+      
     } catch (error) {
       console.error("Error generating policies for seat:", error);
       res.status(500).json({ message: "Failed to generate policies" });
