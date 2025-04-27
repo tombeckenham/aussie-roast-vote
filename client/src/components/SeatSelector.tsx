@@ -22,29 +22,33 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     initialData: [],
   });
 
-  // Query filtered seats based on search term
-  const { data: searchResults, isLoading: isSearchLoading, refetch } = useQuery<ElectoralSeat[]>({
-    queryKey: ["/api/seats/search", searchTerm],
-    queryFn: async () => {
-      if (!searchTerm || searchTerm.length < 2) return [];
-      const res = await fetch(`/api/seats/search?query=${encodeURIComponent(searchTerm)}`);
-      if (!res.ok) throw new Error("Failed to search seats");
-      return res.json();
-    },
-    initialData: [],
-    enabled: false, // Don't run automatically on each keystroke
-  });
+  // State to store search results
+  const [searchResults, setSearchResults] = useState<ElectoralSeat[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Handle search
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchTerm.trim() || searchTerm.length < 2) return;
     
-    // Execute the search query
-    refetch();
-    
-    // If only one result, automatically select it
-    if (searchResults && searchResults.length === 1) {
-      onSeatSelect(searchResults[0].slug);
+    try {
+      setIsSearching(true);
+      // Directly fetch search results
+      const res = await fetch(`/api/seats/search?query=${encodeURIComponent(searchTerm)}`);
+      if (!res.ok) throw new Error("Failed to search seats");
+      
+      const results = await res.json();
+      console.log("Search results:", results);
+      setSearchResults(results);
+      
+      // If only one result, automatically select it
+      if (results.length === 1) {
+        onSeatSelect(results[0].slug);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -78,10 +82,11 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
               onKeyPress={handleKeyPress}
             />
             <button
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg disabled:bg-gray-400"
               onClick={handleSearch}
+              disabled={isSearching}
             >
-              Search
+              {isSearching ? "Searching..." : "Search"}
             </button>
           </div>
           
@@ -104,19 +109,31 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
             </div>
           </div>
 
-          {searchTerm && searchResults && searchResults.length > 0 && (
+          {isSearching && (
+            <div className="mt-4 flex justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-aussie-green"></div>
+            </div>
+          )}
+          
+          {searchTerm && !isSearching && (
             <div className="mt-4">
               <h4 className="font-heading font-bold text-lg mb-2">Search Results:</h4>
               <div className="bg-light-bg rounded-lg p-2">
-                {searchResults.map((seat) => (
-                  <button
-                    key={seat.id}
-                    className="block w-full text-left px-3 py-2 hover:bg-aussie-gold/20 rounded-md transition-colors"
-                    onClick={() => handleSeatClick(seat.slug)}
-                  >
-                    <span className="font-semibold">{seat.name}</span>, {seat.state}
-                  </button>
-                ))}
+                {searchResults.length > 0 ? (
+                  searchResults.map((seat) => (
+                    <button
+                      key={seat.id}
+                      className="block w-full text-left px-3 py-2 hover:bg-aussie-gold/20 rounded-md transition-colors"
+                      onClick={() => handleSeatClick(seat.slug)}
+                    >
+                      <span className="font-semibold">{seat.name}</span>, {seat.state}
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-3 text-center text-gray-500">
+                    No results found for "{searchTerm}". Try a different search term.
+                  </div>
+                )}
               </div>
             </div>
           )}
