@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 const openai = new OpenAI({ 
   baseURL: "https://api.x.ai/v1", 
-  apiKey: process.env.XAI_API_KEY || "default_key" 
+  apiKey: process.env.XAI_API_KEY || "" 
 });
 
 // Generate a humorous roast for a political candidate
@@ -171,12 +171,22 @@ export async function generateCampaignActivities(
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
-    return result.map((activity: any) => ({
-      ...activity,
-      dateTime: new Date(activity.dateTime),
-      endDateTime: new Date(activity.endDateTime)
-    }));
+    const responseData = JSON.parse(response.choices[0].message.content);
+    // Make sure we're accessing the activities array if it exists
+    const activities = responseData.activities || responseData;
+    
+    // Ensure the result is an array before mapping
+    if (Array.isArray(activities)) {
+      return activities.map((activity: any) => ({
+        ...activity,
+        dateTime: new Date(activity.dateTime),
+        endDateTime: new Date(activity.endDateTime)
+      }));
+    } else {
+      // If not an array, create a proper error message and throw
+      console.error("Unexpected response format:", responseData);
+      throw new Error("Received unexpected format from API");
+    }
   } catch (error) {
     console.error("Error generating campaign activities:", error);
     // Return fallback activities if API fails

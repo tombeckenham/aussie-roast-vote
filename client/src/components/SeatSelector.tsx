@@ -6,29 +6,41 @@ interface SeatSelectorProps {
   onSeatSelect: (seatSlug: string) => void;
 }
 
+interface ElectoralSeat {
+  id: number;
+  name: string;
+  slug: string;
+  state: string;
+}
+
 const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Query electoral seats
-  const { data: seats, isLoading } = useQuery({
+  const { data: seats, isLoading } = useQuery<ElectoralSeat[]>({
     queryKey: ["/api/seats"],
+    initialData: [],
   });
 
   // Query filtered seats based on search term
-  const { data: searchResults, isLoading: isSearchLoading } = useQuery({
+  const { data: searchResults, isLoading: isSearchLoading, refetch } = useQuery<ElectoralSeat[]>({
     queryKey: ["/api/seats/search", searchTerm],
     queryFn: async () => {
-      if (!searchTerm) return [];
+      if (!searchTerm || searchTerm.length < 2) return [];
       const res = await fetch(`/api/seats/search?query=${encodeURIComponent(searchTerm)}`);
       if (!res.ok) throw new Error("Failed to search seats");
       return res.json();
     },
-    enabled: !!searchTerm,
+    initialData: [],
+    enabled: false, // Don't run automatically on each keystroke
   });
 
   // Handle search
   const handleSearch = () => {
-    if (!searchTerm.trim()) return;
+    if (!searchTerm.trim() || searchTerm.length < 2) return;
+    
+    // Execute the search query
+    refetch();
     
     // If only one result, automatically select it
     if (searchResults && searchResults.length === 1) {
