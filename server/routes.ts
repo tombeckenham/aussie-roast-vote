@@ -305,6 +305,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Invalid seat ID" });
         }
 
+        // Get the electoral seat to get current MP info
+        const seat = await storage.getElectoralSeatById(seatId);
+        if (!seat) {
+          return res.status(404).json({ message: "Seat not found" });
+        }
+
         // Ensure candidates exist for this seat
         await ensureCandidatesForSeat(seatId);
 
@@ -325,9 +331,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const activities = await storage.getUpcomingCampaignActivities(
               candidate.id,
             );
+            
+            // Check if this is the incumbent MP
+            const isIncumbent = seat.currentMp && candidate.name.toLowerCase().includes(seat.currentMp.toLowerCase());
+            
+            // Enhance candidate with seat info if they're the incumbent
+            const enhancedCandidate = {
+              ...candidate,
+              isIncumbent: isIncumbent || candidate.isIncumbent,
+              // If this is the incumbent but missing data, fill it in from the seat info
+              bio: candidate.bio || (isIncumbent ? `Current Member for ${seat.name}` : candidate.bio),
+              imageUrl: candidate.imageUrl || (isIncumbent ? seat.currentMpPhotoUrl : candidate.imageUrl),
+            };
 
             return {
-              ...candidate,
+              ...enhancedCandidate,
               party,
               roast,
               activities: activities.slice(0, 1), // Just return the next activity

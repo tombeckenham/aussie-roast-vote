@@ -208,7 +208,7 @@ const CandidateTable = ({
               </div>
               {candidate.isIncumbent && (
                 <div className="text-sm bg-gray-50 p-2 rounded mb-2 text-gray-700">
-                  <strong>Track Record:</strong> Current Member for {seat?.name}; serving since 2022; focused on climate action and healthcare reforms
+                  <strong>Track Record:</strong> Current Member for {seat?.name || 'this seat'}; serving since 2022; focused on climate action and healthcare reforms
                 </div>
               )}
             </div>
