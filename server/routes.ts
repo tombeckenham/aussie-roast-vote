@@ -178,8 +178,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Generating commentaries for all ${candidates.length} candidates in ${seat.name}...`);
       
-      // Import the xAI service
+      // Import the services
       const { default: xaiService } = await import('./services/xaiService');
+      const { default: perplexityService } = await import('./services/perplexityService');
       
       // Generate commentaries for each candidate
       const commentaryResults: Record<number, string> = {};
@@ -191,21 +192,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let existingCommentary = await storage.getRoastByCandidate(candidate.id);
         
         if (!existingCommentary) {
-          // Generate a new commentary if one doesn't exist
-          const fullContent = await xaiService.generateCandidateRoast(candidate);
-          
-          if (fullContent) {
-            // Create a shortened version for the table
-            const content = fullContent.split('\n')[0] || fullContent.substring(0, 100);
+          try {
+            // Try to use Perplexity first for more recent data
+            let fullContent;
+            try {
+              // Use Perplexity service for up-to-date information
+              fullContent = await perplexityService.generateCandidateCommentary(candidate, seat.name);
+              console.log(`Generated Perplexity commentary for: ${candidate.name}`);
+            } catch (error) {
+              const perplexityError = error as Error;
+              console.error(`Perplexity error, falling back to xAI: ${perplexityError.message}`);
+              // Fall back to xAI if Perplexity fails
+              fullContent = await xaiService.generateCandidateRoast(candidate);
+              console.log(`Generated xAI commentary for: ${candidate.name}`);
+            }
             
-            // Save to database
-            const commentary = await storage.createRoast({
-              candidateId: candidate.id,
-              content,
-              fullContent,
-            });
-            
-            commentaryResults[candidate.id] = content;
+            if (fullContent) {
+              // Create a shortened version for the table
+              const content = fullContent.split('\n')[0] || fullContent.substring(0, 100);
+              
+              // Save to database
+              const commentary = await storage.createRoast({
+                candidateId: candidate.id,
+                content,
+                fullContent,
+              });
+              
+              commentaryResults[candidate.id] = content;
+            }
+          } catch (error) {
+            console.error(`Failed to generate commentary for ${candidate.name}:`, error);
+            commentaryResults[candidate.id] = "Commentary generation in progress...";
           }
         } else {
           commentaryResults[candidate.id] = existingCommentary.content;
@@ -218,8 +235,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         commentaries: commentaryResults
       });
     } catch (error) {
-      console.error("Error generating roasts:", error);
-      res.status(500).json({ message: "Failed to generate roasts" });
+      console.error("Error generating commentaries:", error);
+      res.status(500).json({ message: "Failed to generate commentaries" });
     }
   });
 
