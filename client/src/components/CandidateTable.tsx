@@ -118,9 +118,9 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Candidate</TableHead>
-            <TableHead>Party</TableHead>
-            <TableHead>Key Policies</TableHead>
+            <TableHead>Candidate Name</TableHead>
+            <TableHead>Party/Independence</TableHead>
+            <TableHead>Key Policy Focus</TableHead>
             <TableHead>Commentary</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -174,7 +174,7 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
                     </div>
                   </div>
                 ) : commentaries[candidate.id] ? (
-                  <div className="text-sm max-w-md line-clamp-2">
+                  <div className="text-sm max-w-md">
                     {commentaries[candidate.id]}
                   </div>
                 ) : (

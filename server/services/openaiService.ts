@@ -3,6 +3,7 @@
  * Uses OpenAI's DALL-E model for image generation
  */
 import OpenAI from "openai";
+import fetch from "node-fetch";
 import { Candidate } from "@shared/schema";
 
 // Initialize OpenAI client with API key
@@ -48,22 +49,32 @@ export async function generateCaricatureImage(
     `;
     
     // Generate the image using OpenAI's latest image generation model
-    // Using GPT-Image-1 which is the newest image generation model as of May 2024
+    // Using dall-e-3 which is a stable image generation model
     const response = await openai.images.generate({
-      model: "gpt-image-1",  // Using GPT-Image-1 model as requested
+      model: "dall-e-3",  // Using dall-e-3 model which is more stable
       prompt: enhancedPrompt.trim(),
       n: 1,
       size: "1024x1024",
-      quality: "hd",
-      response_format: "b64_json", // Get base64 encoded image directly
+      quality: "standard",
+      style: "vivid"
     });
     
-    // Extract the base64 image data
-    if (response.data && response.data.length > 0 && response.data[0].b64_json) {
+    // Get the image URL from the response
+    if (response.data && response.data.length > 0 && response.data[0].url) {
       console.log(`Successfully generated caricature image for ${candidate.name}`);
-      return response.data[0].b64_json;
+      
+      // Fetch the image from the URL and convert to base64
+      try {
+        const imageResponse = await fetch(response.data[0].url);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const base64Image = Buffer.from(imageBuffer).toString('base64');
+        return base64Image;
+      } catch (fetchError) {
+        console.error(`Error fetching image for ${candidate.name}:`, fetchError);
+        return null;
+      }
     } else {
-      console.error(`No image data returned for ${candidate.name}`);
+      console.error(`No image URL returned for ${candidate.name}`);
       return null;
     }
   } catch (error) {

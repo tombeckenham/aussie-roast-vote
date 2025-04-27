@@ -40,6 +40,7 @@ const DivisionPage = () => {
   // Effect to trigger commentary generation when seat data loads
   useEffect(() => {
     if (seat?.id) {
+      console.log("Auto-generating commentaries for seat:", seat.name);
       handleGenerateCommentary();
     }
   }, [seat?.id]);
