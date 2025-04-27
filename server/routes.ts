@@ -148,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const candidate of candidates) {
           const commentary = await storage.getRoastByCandidate(candidate.id);
           if (commentary) {
-            commentaryMap[candidate.id] = commentary.content;
+            commentaryMap[candidate.id] = commentary.fullContent || "";
           }
         }
 
@@ -202,84 +202,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Generating commentary for ${candidate.name}...`);
 
           // Check if commentary already exists (for display)
-          const existingCommentary = await storage.getRoastByCandidate(candidate.id);
-          
+          const existingCommentary = await storage.getRoastByCandidate(
+            candidate.id,
+          );
+
           // Always add existing commentary to the results if available
           if (existingCommentary) {
             commentaryResults[candidate.id] = existingCommentary.content;
           }
-          
+
           // Generate a new commentary regardless if one exists
           try {
-              // Try the combined Perplexity+xAI approach for better data
-              let fullContent;
-              try {
-                // First, get raw factual data from Perplexity
-                console.log(`Getting Perplexity raw data for ${candidate.name}...`);
-                const rawData = await perplexityService.getCandidateRawData(
-                  candidate,
-                  seat.name,
-                );
-                
-                // Get party name for better context
-                let partyName = "Independent";
-                if (candidate.partyId) {
-                  const party = await storage.getPartyById(candidate.partyId);
-                  if (party) {
-                    partyName = party.name;
-                  }
+            // Try the combined Perplexity+xAI approach for better data
+            let fullContent;
+            try {
+              // First, get raw factual data from Perplexity
+              console.log(
+                `Getting Perplexity raw data for ${candidate.name}...`,
+              );
+              const rawData = await perplexityService.getCandidateRawData(
+                candidate,
+                seat.name,
+              );
+
+              // Get party name for better context
+              let partyName = "Independent";
+              if (candidate.partyId) {
+                const party = await storage.getPartyById(candidate.partyId);
+                if (party) {
+                  partyName = party.name;
                 }
-                
-                // Second, have xAI process it into a humorous commentary
-                console.log(`Processing Perplexity data with xAI for ${candidate.name}...`);
-                fullContent = await xaiService.processCandidatePerplexityData(
-                  candidate.name,
-                  partyName,
-                  rawData
-                );
-                
-                console.log(`Generated combined Perplexity+xAI commentary for: ${candidate.name}`);
-              } catch (error) {
-                console.error(
-                  `Error in combined approach, falling back to xAI only: ${(error as Error).message}`,
-                );
-                // Fall back to xAI only if the combined approach fails
-                fullContent = await xaiService.generateCandidateRoast(candidate);
-                console.log(`Generated xAI-only commentary for: ${candidate.name}`);
               }
 
-              if (fullContent) {
-                // Create a more complete version for the table (show more content)
-                // If there are paragraphs, use the first 2 paragraphs, otherwise show a larger portion
-                const content = fullContent.includes('\n') 
-                  ? fullContent.split('\n').slice(0, 2).join('\n')
-                  : fullContent.substring(0, 600);
-                
-                // Check if we already have a roast for this candidate, to replace it
-                const existingRoast = await storage.getRoastByCandidate(candidate.id);
-                
-                if (existingRoast) {
-                  console.log(`Replacing existing commentary for ${candidate.name} (id: ${existingRoast.id})`);
-                }
+              // Second, have xAI process it into a humorous commentary
+              console.log(
+                `Processing Perplexity data with xAI for ${candidate.name}...`,
+              );
+              fullContent = await xaiService.processCandidatePerplexityData(
+                candidate.name,
+                partyName,
+                rawData,
+              );
 
-                // Save to database
-                const commentary = await storage.createRoast({
-                  candidateId: candidate.id,
-                  content,
-                  fullContent,
-                });
-
-                commentaryResults[candidate.id] = content;
-              }
+              console.log(
+                `Generated combined Perplexity+xAI commentary for: ${candidate.name}`,
+              );
             } catch (error) {
               console.error(
-                `Failed to generate commentary for ${candidate.name}:`,
-                error,
+                `Error in combined approach, falling back to xAI only: ${(error as Error).message}`,
               );
-              if (!commentaryResults[candidate.id]) {
-                commentaryResults[candidate.id] = "Commentary generation in progress...";
-              }
+              // Fall back to xAI only if the combined approach fails
+              fullContent = await xaiService.generateCandidateRoast(candidate);
+              console.log(
+                `Generated xAI-only commentary for: ${candidate.name}`,
+              );
             }
+
+            if (fullContent) {
+              // Create a more complete version for the table (show more content)
+              // If there are paragraphs, use the first 2 paragraphs, otherwise show a larger portion
+              const content = fullContent;
+
+              // Check if we already have a roast for this candidate, to replace it
+              const existingRoast = await storage.getRoastByCandidate(
+                candidate.id,
+              );
+
+              if (existingRoast) {
+                console.log(
+                  `Replacing existing commentary for ${candidate.name} (id: ${existingRoast.id})`,
+                );
+              }
+
+              // Save to database
+              const commentary = await storage.createRoast({
+                candidateId: candidate.id,
+                content,
+                fullContent,
+              });
+
+              commentaryResults[candidate.id] = fullContent;
+            }
+          } catch (error) {
+            console.error(
+              `Failed to generate commentary for ${candidate.name}:`,
+              error,
+            );
+            if (!commentaryResults[candidate.id]) {
+              commentaryResults[candidate.id] =
+                "Commentary generation in progress...";
+            }
+          }
         }
 
         res.json({
@@ -331,17 +344,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const activities = await storage.getUpcomingCampaignActivities(
               candidate.id,
             );
-            
+
             // Check if this is the incumbent MP
-            const isIncumbent = seat.currentMp && candidate.name.toLowerCase().includes(seat.currentMp.toLowerCase());
-            
+            const isIncumbent =
+              seat.currentMp &&
+              candidate.name
+                .toLowerCase()
+                .includes(seat.currentMp.toLowerCase());
+
             // Enhance candidate with seat info if they're the incumbent
             const enhancedCandidate = {
               ...candidate,
               isIncumbent: isIncumbent || candidate.isIncumbent,
               // If this is the incumbent but missing data, fill it in from the seat info
-              bio: candidate.bio || (isIncumbent ? `Current Member for ${seat.name}` : candidate.bio),
-              imageUrl: candidate.imageUrl || (isIncumbent ? seat.currentMpPhotoUrl : candidate.imageUrl),
+              bio:
+                candidate.bio ||
+                (isIncumbent
+                  ? `Current Member for ${seat.name}`
+                  : candidate.bio),
+              imageUrl:
+                candidate.imageUrl ||
+                (isIncumbent ? seat.currentMpPhotoUrl : candidate.imageUrl),
             };
 
             return {
@@ -353,17 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }),
         );
 
-        // Sort candidates with incumbent first
-        const sortedCandidates = candidatesWithParty.sort((a, b) => {
-          // Incumbents first
-          if (a.isIncumbent && !b.isIncumbent) return -1;
-          if (!a.isIncumbent && b.isIncumbent) return 1;
-          
-          // Then by ballot position
-          return (a.ballotPosition || 999) - (b.ballotPosition || 999);
-        });
-
-        res.json(sortedCandidates);
+        res.json(candidatesWithParty);
       } catch (error) {
         console.error("Error fetching candidates:", error);
         res.status(500).json({ message: "Failed to fetch candidates" });
@@ -434,16 +447,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Import the necessary service
-        const { default: xaiService } = await import('./services/xaiService');
-        
-        console.log(`Generating caricature for candidate ${candidate.name} using xAI API...`);
-        
+        const { default: xaiService } = await import("./services/xaiService");
+
+        console.log(
+          `Generating caricature for candidate ${candidate.name} using xAI API...`,
+        );
+
         // Create a detailed prompt for xAI focused on Australian political humor
-        const policyStr = 
+        const policyStr =
           candidate.keyPolicies && candidate.keyPolicies.length > 0
             ? `Key policies: ${candidate.keyPolicies.join(", ")}.`
             : "";
-        
+
         const enhancedPrompt = `
           Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
           from the ${candidate.partyBallotName || "Independent"} party.
@@ -464,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           Format: Digital illustration with white background, clean and shareable
         `;
-        
+
         // Make a direct fetch to the xAI API (without using any 'size' parameter)
         const response = await fetch("https://api.x.ai/v1/images/generations", {
           method: "POST",
@@ -475,19 +490,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           body: JSON.stringify({
             prompt: enhancedPrompt.trim(),
             model: "grok-2-image", // Using the latest model for image generation
-            n: 1
+            n: 1,
           }),
         });
 
         if (!response.ok) {
-          console.error(`xAI image generation failed with status: ${response.status}`);
+          console.error(
+            `xAI image generation failed with status: ${response.status}`,
+          );
           const errorData = await response.json();
-          console.error('Error details:', errorData);
+          console.error("Error details:", errorData);
           throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Type guard to check if response data has the expected structure
         if (
           data &&
@@ -496,8 +513,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           data.data.length > 0 &&
           typeof data.data[0].url === "string"
         ) {
-          console.log(`Successfully generated caricature image for ${candidate.name} using xAI`);
-          
+          console.log(
+            `Successfully generated caricature image for ${candidate.name} using xAI`,
+          );
+
           // Fetch the image from the URL and store it in the database
           let base64Image = null;
           try {
@@ -508,11 +527,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const imageBuffer = await imageResponse.arrayBuffer();
             base64Image = Buffer.from(imageBuffer).toString("base64");
           } catch (fetchOrStoreError) {
-            console.error(`Error fetching or storing image for ${candidate.name}:`, fetchOrStoreError);
-            res.status(500).json({ message: "Failed to fetch or store generated image" });
+            console.error(
+              `Error fetching or storing image for ${candidate.name}:`,
+              fetchOrStoreError,
+            );
+            res
+              .status(500)
+              .json({ message: "Failed to fetch or store generated image" });
             return;
           }
-          
+
           // Return image data in the response
           res.json({
             candidateId,
@@ -521,8 +545,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             imageData: base64Image,
           });
         } else {
-          console.error(`No valid image URL returned for ${candidate.name} from xAI:`, data);
-          res.status(500).json({ message: "Failed to generate image (invalid response)" });
+          console.error(
+            `No valid image URL returned for ${candidate.name} from xAI:`,
+            data,
+          );
+          res
+            .status(500)
+            .json({ message: "Failed to generate image (invalid response)" });
         }
       } catch (error) {
         console.error("Error generating caricature:", error);
@@ -543,115 +572,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Regenerate commentary for a specific candidate
-  app.post("/api/candidates/:id/regenerate-commentary", async (req: Request, res: Response) => {
-    try {
-      const candidateId = parseInt(req.params.id, 10);
-      
-      if (isNaN(candidateId)) {
-        return res.status(400).json({ message: "Invalid candidate ID" });
-      }
-      
-      const candidate = await storage.getCandidateById(candidateId);
-      if (!candidate) {
-        return res.status(404).json({ message: "Candidate not found" });
-      }
-      
-      // Get existing roast to delete
-      const existingRoast = await storage.getRoastByCandidate(candidateId);
-      
-      // Delete the existing roast if it exists (in a real DB you'd use proper API)
-      if (existingRoast) {
-        await db.delete(aiRoasts).where(eq(aiRoasts.candidateId, candidateId));
-      }
-      
-      // Fetch seat data for context
-      const seat = await storage.getElectoralSeatById(candidate.electoralSeatId);
-      if (!seat) {
-        return res.status(404).json({ message: "Electoral seat not found" });
-      }
-      
-      // Fetch party info for context
-      let partyName = "Independent";
-      if (candidate.partyId) {
-        const party = await storage.getPartyById(candidate.partyId);
-        if (party) {
-          partyName = party.name;
-        }
-      }
-      
-      // Generate new commentary
-      console.log(`Regenerating commentary for ${candidate.name}...`)
-      
-      // Import the services we need
-      const { default: perplexityService } = await import("./services/perplexityService");
-      const { default: xaiService } = await import("./services/xaiService");
+  app.post(
+    "/api/candidates/:id/regenerate-commentary",
+    async (req: Request, res: Response) => {
+      try {
+        const candidateId = parseInt(req.params.id, 10);
 
-      // Get raw data from Perplexity
-      console.log(`Getting fresh data for ${candidate.name} from Perplexity...`);
-      const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
-      
-      // Check if Perplexity found an image URL for the candidate
-      const imageUrlMatch = rawData.match(/IMAGE_URL: (https?:\/\/[^\s]+)/i);
-      if (imageUrlMatch && imageUrlMatch[1] && !candidate.imageUrl) {
-        const imageUrl = imageUrlMatch[1].trim();
-        console.log(`Found image URL for ${candidate.name}: ${imageUrl}`);
-        // Update the candidate's image URL in the database
-        await storage.updateCandidateImage(candidate.id, imageUrl);
-      }
-      
-      // Extract and store key policies from the raw data
-      const policiesSection = rawData.match(/(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i);
-      if (policiesSection && policiesSection[1]) {
-        const policyText = policiesSection[1];
-        let policies = policyText.split(/\n\s*-\s*|\n\*\*|\n•/)
-          .filter(policy => policy.trim().length > 0 && 
-                 !policy.includes('Key policy positions') && 
-                 !policy.includes('Key Policy Positions') &&
-                 !policy.includes('and Political Stances'))
-          .map(policy => policy.trim().replace(/\*\*/g, ''))
-          .filter(policy => policy.length > 10 && policy.length < 100); // Reasonable length for a policy
-        
-        // Get the first 3 policies
-        policies = policies.slice(0, 3);
-        
-        if (policies.length > 0) {
-          console.log(`Extracted key policies for ${candidate.name}:`, policies);
-          await storage.updateCandidatePolicies(candidate.id, policies);
+        if (isNaN(candidateId)) {
+          return res.status(400).json({ message: "Invalid candidate ID" });
         }
+
+        const candidate = await storage.getCandidateById(candidateId);
+        if (!candidate) {
+          return res.status(404).json({ message: "Candidate not found" });
+        }
+
+        // Get existing roast to delete
+        const existingRoast = await storage.getRoastByCandidate(candidateId);
+
+        // Delete the existing roast if it exists (in a real DB you'd use proper API)
+        if (existingRoast) {
+          await db
+            .delete(aiRoasts)
+            .where(eq(aiRoasts.candidateId, candidateId));
+        }
+
+        // Fetch seat data for context
+        const seat = await storage.getElectoralSeatById(
+          candidate.electoralSeatId,
+        );
+        if (!seat) {
+          return res.status(404).json({ message: "Electoral seat not found" });
+        }
+
+        // Fetch party info for context
+        let partyName = "Independent";
+        if (candidate.partyId) {
+          const party = await storage.getPartyById(candidate.partyId);
+          if (party) {
+            partyName = party.name;
+          }
+        }
+
+        // Generate new commentary
+        console.log(`Regenerating commentary for ${candidate.name}...`);
+
+        // Import the services we need
+        const { default: perplexityService } = await import(
+          "./services/perplexityService"
+        );
+        const { default: xaiService } = await import("./services/xaiService");
+
+        // Get raw data from Perplexity
+        console.log(
+          `Getting fresh data for ${candidate.name} from Perplexity...`,
+        );
+        const rawData = await perplexityService.getCandidateRawData(
+          candidate,
+          seat.name,
+        );
+
+        // Check if Perplexity found an image URL for the candidate
+        const imageUrlMatch = rawData.match(/IMAGE_URL: (https?:\/\/[^\s]+)/i);
+        if (imageUrlMatch && imageUrlMatch[1] && !candidate.imageUrl) {
+          const imageUrl = imageUrlMatch[1].trim();
+          console.log(`Found image URL for ${candidate.name}: ${imageUrl}`);
+          // Update the candidate's image URL in the database
+          await storage.updateCandidateImage(candidate.id, imageUrl);
+        }
+
+        // Extract and store key policies from the raw data
+        const policiesSection = rawData.match(
+          /(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i,
+        );
+        if (policiesSection && policiesSection[1]) {
+          const policyText = policiesSection[1];
+          let policies = policyText
+            .split(/\n\s*-\s*|\n\*\*|\n•/)
+            .filter(
+              (policy) =>
+                policy.trim().length > 0 &&
+                !policy.includes("Key policy positions") &&
+                !policy.includes("Key Policy Positions") &&
+                !policy.includes("and Political Stances"),
+            )
+            .map((policy) => policy.trim().replace(/\*\*/g, ""))
+            .filter((policy) => policy.length > 10 && policy.length < 100); // Reasonable length for a policy
+
+          // Get the first 3 policies
+          policies = policies.slice(0, 3);
+
+          if (policies.length > 0) {
+            console.log(
+              `Extracted key policies for ${candidate.name}:`,
+              policies,
+            );
+            await storage.updateCandidatePolicies(candidate.id, policies);
+          }
+        }
+
+        // Process with xAI
+        console.log(`Processing data with xAI for ${candidate.name}...`);
+        const fullContent = await xaiService.processCandidatePerplexityData(
+          candidate.name,
+          partyName,
+          rawData,
+        );
+
+        // Create a more complete version for the card view (show more content)
+        // If there are paragraphs, use the first 2 paragraphs, otherwise show a larger portion
+        const content = fullContent.includes("\n")
+          ? fullContent.split("\n").slice(0, 2).join("\n")
+          : fullContent.substring(0, 600);
+
+        // Create new roast
+        await storage.createRoast({
+          candidateId: candidate.id,
+          content,
+          fullContent,
+        });
+
+        // Return success
+        res.json({
+          success: true,
+          message: `Commentary for ${candidate.name} is being regenerated`,
+        });
+      } catch (error) {
+        console.error("Error regenerating commentary:", error);
+        res.status(500).json({ message: "Failed to regenerate commentary" });
       }
-      
-      // Process with xAI
-      console.log(`Processing data with xAI for ${candidate.name}...`);
-      const fullContent = await xaiService.processCandidatePerplexityData(
-        candidate.name,
-        partyName,
-        rawData
-      );
-      
-      // Create a more complete version for the card view (show more content)
-      // If there are paragraphs, use the first 2 paragraphs, otherwise show a larger portion
-      const content = fullContent.includes('\n') 
-        ? fullContent.split('\n').slice(0, 2).join('\n')
-        : fullContent.substring(0, 600);
-      
-      // Create new roast
-      await storage.createRoast({
-        candidateId: candidate.id,
-        content,
-        fullContent,
-      });
-      
-      // Return success
-      res.json({ 
-        success: true, 
-        message: `Commentary for ${candidate.name} is being regenerated` 
-      });
-    } catch (error) {
-      console.error("Error regenerating commentary:", error);
-      res.status(500).json({ message: "Failed to regenerate commentary" });
-    }
-  });
-  
+    },
+  );
+
   // Q&A API
   app.post("/api/candidates/:id/ask", async (req: Request, res: Response) => {
     try {

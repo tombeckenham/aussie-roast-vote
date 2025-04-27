@@ -228,9 +228,7 @@ export async function generateCandidateData(
         );
 
         // Create a more complete version for the table (more of the first paragraph)
-        content = fullContent.includes("\n")
-          ? fullContent.split("\n")[0]
-          : fullContent.substring(0, 300);
+        content = fullContent;
 
         console.log(
           `Generated combined Perplexity+xAI commentary for: ${candidate.name}`,

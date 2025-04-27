@@ -53,7 +53,9 @@ const CandidateTable = ({
   const [generatingCaricature, setGeneratingCaricature] = useState<
     number | null
   >(null);
-  const [commentariesState, setCommentaries] = useState<Record<number, string>>({});
+  const [commentariesState, setCommentaries] = useState<Record<number, string>>(
+    {},
+  );
 
   // Fetch candidates for the electoral seat
   const {
@@ -64,9 +66,9 @@ const CandidateTable = ({
     queryKey: [`/api/seats/${seatId}/candidates`],
     enabled: !!seatId,
   });
-  
+
   // Fetch seat information to display in the incumbent's track record
-  const { data: seat } = useQuery<{id: number, name: string}>({
+  const { data: seat } = useQuery<{ id: number; name: string }>({
     queryKey: [`/api/seats/${seatId}`],
     enabled: !!seatId,
   });
@@ -117,11 +119,11 @@ const CandidateTable = ({
       generateCaricatureMutation.mutate(candidateId);
     }
   };
-  
+
   // Auto-generate caricatures for any candidates that don't have them
   useEffect(() => {
     if (candidates && !isLoading) {
-      candidates.forEach(candidate => {
+      candidates.forEach((candidate) => {
         if (!candidate.imageUrl && generatingCaricature !== candidate.id) {
           // Delay each caricature generation to avoid overloading the server
           setTimeout(() => {
@@ -197,7 +199,9 @@ const CandidateTable = ({
                     <CardDescription>
                       {candidate.partyBallotName ||
                         (candidate.isIndependent ? "Independent" : "-")}
-                      {candidate.position && <span> · {candidate.position}</span>}
+                      {candidate.position && (
+                        <span> · {candidate.position}</span>
+                      )}
                     </CardDescription>
                     {candidate.isIncumbent && (
                       <Badge className="bg-aussie-gold text-dark-text mt-1">
@@ -209,19 +213,21 @@ const CandidateTable = ({
               </div>
               {candidate.isIncumbent && (
                 <div className="text-sm bg-gray-50 p-2 rounded mb-2 text-gray-700">
-                  <strong>Track Record:</strong> Current Member for {seat?.name || 'this seat'}; serving since 2022; focused on climate action and healthcare reforms
+                  <strong>Track Record:</strong> Current Member for{" "}
+                  {seat?.name || "this seat"}; serving since 2022; focused on
+                  climate action and healthcare reforms
                 </div>
               )}
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col h-full">
+          <CardContent className="flex flex-col">
             {/* Key Policies */}
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-muted-foreground mb-2">
+            <div className="mb-2">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-1">
                 Key Policies
               </h4>
-              <ul className="list-disc pl-5 text-gray-700 text-sm space-y-2">
+              <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
                   candidate.keyPolicies.slice(0, 3).map((policy, idx) => (
                     <li key={idx}>{policy}</li>
@@ -229,29 +235,31 @@ const CandidateTable = ({
                 ) : (
                   <>
                     <li>Policy information unavailable</li>
-                    <li>Check candidate website for details</li>
-                    <li>View full profile for more information</li>
+                    <li>View profile for more details</li>
                   </>
                 )}
               </ul>
             </div>
-
+            
             {/* Commentary */}
-            <div className="mb-4 flex-grow">
+            <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Overview
                 </h4>
                 {commentaries[candidate.id] && (
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     className="h-6 px-2"
                     onClick={() => {
                       // Only need to trigger a regeneration of this specific candidate on the server
-                      fetch(`/api/candidates/${candidate.id}/regenerate-commentary`, {
-                        method: "POST"
-                      }).then(() => {
+                      fetch(
+                        `/api/candidates/${candidate.id}/regenerate-commentary`,
+                        {
+                          method: "POST",
+                        },
+                      ).then(() => {
                         // Force a refresh of the commentaries
                         refetchCommentaries();
                       });
@@ -273,11 +281,11 @@ const CandidateTable = ({
                   </div>
                 </div>
               ) : commentaries[candidate.id] ? (
-                <div className="text-sm py-3 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 overflow-y-auto max-h-[380px] text-gray-700">
+                <div className="text-sm py-2 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 text-gray-700">
                   {commentaries[candidate.id]}
                 </div>
               ) : (
-                <div className="flex items-center space-x-2 text-gray-500 text-sm h-[50px] justify-center border border-dashed border-gray-200 rounded p-4">
+                <div className="flex items-center space-x-2 text-gray-500 text-sm justify-center border border-dashed border-gray-200 rounded p-2">
                   <Clock className="h-4 w-4" />
                   <span>Overview will be generated automatically</span>
                 </div>
