@@ -27,6 +27,7 @@ const DEBOUNCE_DELAY = 300;
 const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [, setLocation] = useLocation();
 
   // Query electoral seats for the map
   const { data: seats } = useQuery<ElectoralSeat[]>({
@@ -68,6 +69,11 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
 
   // Handle seat selection from list
   const handleSeatClick = (slug: string) => {
+    // Convert division name to lowercase and replace spaces with hyphens for slug format
+    const formattedSlug = slug.toLowerCase().replace(/\s+/g, '-');
+    // Navigate to the division page
+    setLocation(`/division/${formattedSlug}`);
+    // Also call the onSeatSelect prop for backward compatibility
     onSeatSelect(slug);
   };
 
