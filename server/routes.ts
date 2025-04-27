@@ -13,7 +13,8 @@ import {
   findElectoralSeatsByPostcode, 
   initializeAECDataService,
   findDivisionByPostcode,
-  getDivisionDetailsByName
+  getDivisionDetailsByName,
+  findDivisionsByPostcode
 } from "./services/aecDataService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -105,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get details for each division
-      const divisions = divisionNames.map(name => {
+      const divisions = divisionNames.map((name: string) => {
         const details = getDivisionDetailsByName(name);
         return {
           postcode,

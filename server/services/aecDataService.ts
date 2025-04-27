@@ -8,8 +8,8 @@ import { ElectoralSeat } from '@shared/schema';
 import { storage } from '../storage';
 
 // Paths to the AEC data files
-const POSTCODE_DATA_PATH = './attached_assets/aec_postcodes.txt';
-const DIVISIONS_DATA_PATH = './attached_assets/aec_divisions.json';
+const POSTCODE_DATA_PATH = './server/data/aec_postcodes.txt';
+const DIVISIONS_DATA_PATH = './server/data/aec_divisions.json';
 
 // Interface for the original postcode data structure
 interface PostcodeMapping {
@@ -152,13 +152,6 @@ export function findDivisionsByPostcode(postcode: string): string[] {
     return divisions;
   }
   
-  // Handle special test cases
-  if (postcode === '2087') {
-    return ['MACKELLAR'];
-  } else if (postcode === '2000') {
-    return ['SYDNEY', 'WENTWORTH'];
-  }
-  
   console.log(`No divisions found for postcode ${postcode}`);
   return [];
 }
@@ -197,15 +190,6 @@ export function findDivisionByPostcode(postcode: string): ElectorateResult | nul
       postcode,
       divisionName: match.divisionName,
       state: match.state
-    };
-  }
-  
-  // Handle special test case
-  if (postcode === '2087') {
-    return {
-      postcode: '2087',
-      divisionName: 'MACKELLAR',
-      state: 'NSW'
     };
   }
   
@@ -286,27 +270,6 @@ export async function findElectoralSeatsByPostcode(postcode: string): Promise<El
     
     // Convert map to array
     seatMap.forEach(seat => seats.push(seat));
-    
-    // Special handling for specific test cases
-    if (seats.length === 0) {
-      // For 2087 (Killarney Heights), ensure we find Mackellar
-      if (postcode === '2087') {
-        const mackellarSeat = allSeats.find(s => 
-            s.name.toLowerCase() === 'mackellar');
-        if (mackellarSeat) seats.push(mackellarSeat);
-      }
-      
-      // For 2000 (Sydney CBD), ensure we find Sydney and Wentworth
-      else if (postcode === '2000') {
-        const sydneySeat = allSeats.find(s => 
-            s.name.toLowerCase() === 'sydney');
-        const wentworthSeat = allSeats.find(s => 
-            s.name.toLowerCase() === 'wentworth');
-        
-        if (sydneySeat) seats.push(sydneySeat);
-        if (wentworthSeat) seats.push(wentworthSeat);
-      }
-    }
     
     console.log(`Found ${seats.length} matching seats for postcode ${postcode}`);
     return seats;
