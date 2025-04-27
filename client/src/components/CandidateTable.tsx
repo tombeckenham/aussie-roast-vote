@@ -49,10 +49,11 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
   });
 
   // Fetch candidate commentaries from the API
-  const { data: commentaries = {} } = useQuery<Record<number, string>>({
+  const { data: commentaries = {}, refetch: refetchCommentaries } = useQuery<Record<number, string>>({
     queryKey: [`/api/seats/${seatId}/commentaries`],
     enabled: !!seatId && !!candidates?.length,
     initialData: {},
+    refetchInterval: isGeneratingCommentary ? 2000 : false, // Poll every 2 seconds while generating
   });
 
   // Generate caricature mutation

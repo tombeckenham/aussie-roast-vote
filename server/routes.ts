@@ -366,6 +366,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check all ai_roasts
+  app.get("/api/debug/roasts", async (req: Request, res: Response) => {
+    try {
+      const allRoasts = await storage.getAllRoasts();
+      res.json(allRoasts);
+    } catch (error) {
+      console.error("Error fetching all roasts:", error);
+      res.status(500).json({ message: "Failed to fetch roasts for debugging" });
+    }
+  });
+
   // Q&A API
   app.post("/api/candidates/:id/ask", async (req: Request, res: Response) => {
     try {

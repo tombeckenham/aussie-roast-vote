@@ -65,6 +65,7 @@ export interface IStorage {
   // AI Roasts
   getRoastByCandidate(candidateId: number): Promise<AiRoast | undefined>;
   createRoast(roast: InsertAiRoast): Promise<AiRoast>;
+  getAllRoasts(): Promise<AiRoast[]>;
 
   // Candidate Q&A
   getCandidateQA(candidateId: number): Promise<CandidateQA[]>;
@@ -372,6 +373,10 @@ export class MemStorage implements IStorage {
     this.aiRoasts.set(id, roast);
     return roast;
   }
+  
+  async getAllRoasts(): Promise<AiRoast[]> {
+    return Array.from(this.aiRoasts.values());
+  }
 
   // Candidate Q&A
   async getCandidateQA(candidateId: number): Promise<CandidateQA[]> {
@@ -576,6 +581,10 @@ export class DatabaseStorage implements IStorage {
   async createRoast(roast: InsertAiRoast): Promise<AiRoast> {
     const [createdRoast] = await db.insert(aiRoasts).values(roast).returning();
     return createdRoast;
+  }
+  
+  async getAllRoasts(): Promise<AiRoast[]> {
+    return db.select().from(aiRoasts);
   }
 
   // Candidate Q&A

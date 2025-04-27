@@ -41,7 +41,15 @@ const DivisionPage = () => {
   useEffect(() => {
     if (seat?.id) {
       console.log("Auto-generating commentaries for seat:", seat.name);
+      
+      // First generate the commentaries
       handleGenerateCommentary();
+      
+      // Then explicitly invalidate the commentaries query after a delay to ensure UI gets updated
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
+        console.log("Refreshing commentaries for seat:", seat.name);
+      }, 5000); // Wait 5 seconds to allow server to generate commentaries
     }
   }, [seat?.id]);
 
@@ -56,8 +64,9 @@ const DivisionPage = () => {
       return response.json();
     },
     onSuccess: (data) => {
-      // Invalidate candidate queries to refresh the table
+      // Invalidate candidate queries and commentaries to refresh the table
       queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/candidates`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
       
       // No need to show a toast when automatically generating on page load
       console.log("Commentaries generated:", data.commentaries);
