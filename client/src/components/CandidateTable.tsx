@@ -111,6 +111,21 @@ const CandidateTable = ({
       generateCaricatureMutation.mutate(candidateId);
     }
   };
+  
+  // Auto-generate caricatures for any candidates that don't have them
+  useEffect(() => {
+    if (candidates && !isLoading) {
+      candidates.forEach(candidate => {
+        if (!candidate.imageUrl && generatingCaricature !== candidate.id) {
+          // Delay each caricature generation to avoid overloading the server
+          setTimeout(() => {
+            console.log(`Auto-generating caricature for ${candidate.name}`);
+            generateCaricatureMutation.mutate(candidate.id);
+          }, 1000 * Math.random()); // Random delay between 0-1000ms
+        }
+      });
+    }
+  }, [candidates, isLoading]);
 
   if (isLoading) {
     return (
@@ -158,30 +173,37 @@ const CandidateTable = ({
           className={`${candidate.isIncumbent ? "border-aussie-gold border-2" : ""} min-h-[650px] flex flex-col`}
         >
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage
-                    src={candidate.imageUrl || ""}
-                    alt={candidate.name}
-                  />
-                  <AvatarFallback>
-                    <User size={20} />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-lg">{candidate.name}</CardTitle>
-                  <CardDescription>
-                    {candidate.partyBallotName ||
-                      (candidate.isIndependent ? "Independent" : "-")}
-                    {candidate.position && <span> · {candidate.position}</span>}
-                  </CardDescription>
+            <div className="flex flex-col">
+              <div className="flex justify-between mb-2">
+                <div className="flex items-center">
+                  <Avatar className="h-20 w-20 mr-3">
+                    <AvatarImage
+                      src={candidate.imageUrl || ""}
+                      alt={candidate.name}
+                    />
+                    <AvatarFallback>
+                      <User size={32} />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <CardTitle className="text-lg">{candidate.name}</CardTitle>
+                    <CardDescription>
+                      {candidate.partyBallotName ||
+                        (candidate.isIndependent ? "Independent" : "-")}
+                      {candidate.position && <span> · {candidate.position}</span>}
+                    </CardDescription>
+                    {candidate.isIncumbent && (
+                      <Badge className="bg-aussie-gold text-dark-text mt-1">
+                        Incumbent
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               {candidate.isIncumbent && (
-                <Badge className="bg-aussie-gold text-dark-text">
-                  Incumbent
-                </Badge>
+                <div className="text-sm bg-gray-50 p-2 rounded mb-2 text-gray-700">
+                  <strong>Track Record:</strong> Serving since 2022; focused on climate action and healthcare reforms
+                </div>
               )}
             </div>
           </CardHeader>
@@ -276,7 +298,7 @@ const CandidateTable = ({
               {generateCaricatureMutation.isPending &&
               generatingCaricature === candidate.id
                 ? "Generating..."
-                : "Generate Caricature"}
+                : "Regenerate Portrait"}
             </Button>
           </CardFooter>
         </Card>
