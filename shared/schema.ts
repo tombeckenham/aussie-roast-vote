@@ -27,6 +27,7 @@ export const electoralSeats = pgTable("electoral_seats", {
   isMarginial: boolean("is_marginial").default(false),
   currentMp: text("current_mp"),
   currentParty: text("current_party"),
+  currentMpPhotoUrl: text("current_mp_photo_url"),
   keyIssues: text("key_issues").array(),
   previousResults: json("previous_results"),
   slug: text("slug").notNull().unique(),

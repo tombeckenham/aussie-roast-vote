@@ -12,6 +12,7 @@ import { importAECDivisions } from './importAECDivisions';
 import { importLocalities } from './importLocalities';
 import { importCandidates } from './importCandidates';
 import { importCurrentMPs } from './importCurrentMPs';
+import { importManualMPData } from './importManualMPData';
 import { candidates, electoralSeats, localities } from '@shared/schema';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
@@ -77,11 +78,13 @@ async function setupDatabase() {
       if (fs.existsSync(mpDataPath)) {
         try {
           console.log('🔄 Using manual MP data file as fallback');
-          const mpData = JSON.parse(fs.readFileSync(mpDataPath, 'utf-8'));
-          console.log(`Found ${mpData.length} MPs in manual data file`);
+          const manualMpResult = await importManualMPData();
           
-          // TODO: Add code to import MP data from the JSON file
-          console.log('✅ Manual MP data processed');
+          if (manualMpResult.success) {
+            console.log(`✅ Manual MP data processed. Imported: ${manualMpResult.imported}, Not found: ${manualMpResult.notFound}`);
+          } else {
+            console.warn(`⚠️ Error importing manual MP data: ${manualMpResult.error}`);
+          }
         } catch (jsonError) {
           console.warn('⚠️ Error processing manual MP data:', jsonError instanceof Error ? jsonError.message : String(jsonError));
         }
