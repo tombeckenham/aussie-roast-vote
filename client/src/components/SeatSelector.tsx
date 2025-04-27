@@ -92,16 +92,30 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
       <div className="md:flex md:justify-between md:items-start mb-8">
         <div className="md:w-1/2 mb-6 md:mb-0 md:pr-8">
           <div className="relative">
+            <div className="flex space-x-2 mb-2">
+              <button
+                className={`px-3 py-1 rounded font-semibold ${searchMode === 'name' ? 'bg-aussie-green text-white' : 'bg-gray-200'}`}
+                onClick={() => setSearchMode('name')}
+              >
+                Search by Name
+              </button>
+              <button
+                className={`px-3 py-1 rounded font-semibold ${searchMode === 'postcode' ? 'bg-aussie-green text-white' : 'bg-gray-200'}`}
+                onClick={() => setSearchMode('postcode')}
+              >
+                Search by Postcode
+              </button>
+            </div>
             <input
               type="text"
-              placeholder="Enter postcode or suburb"
+              placeholder={searchMode === 'postcode' ? "Enter your 4-digit postcode (e.g. 2000)" : "Search by seat name or state..."}
               className="w-full border-2 border-aussie-green rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-aussie-green"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
             />
             <button
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg disabled:bg-gray-400"
+              className="absolute right-2 top-[46px] transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg disabled:bg-gray-400"
               onClick={handleSearch}
               disabled={isSearching}
             >
@@ -136,7 +150,14 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
           
           {searchTerm && !isSearching && (
             <div className="mt-4">
-              <h4 className="font-heading font-bold text-lg mb-2">Search Results:</h4>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-heading font-bold text-lg">Search Results:</h4>
+                {searchResults.length > 0 && (
+                  <span className="text-sm bg-aussie-green/10 text-aussie-green font-semibold rounded-full px-3 py-1">
+                    {searchResults.length} {searchResults.length === 1 ? 'seat' : 'seats'} found
+                  </span>
+                )}
+              </div>
               <div className="bg-light-bg rounded-lg p-2">
                 {searchResults.length > 0 ? (
                   searchResults.map((seat) => (
@@ -150,7 +171,11 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
                   ))
                 ) : (
                   <div className="p-3 text-center text-gray-500">
-                    No results found for "{searchTerm}". Try a different search term.
+                    {searchMode === 'postcode' ? (
+                      <>No electorates found for postcode "{searchTerm}". Please check the postcode and try again.</>
+                    ) : (
+                      <>No results found for "{searchTerm}". Try a different search term.</>
+                    )}
                   </div>
                 )}
               </div>

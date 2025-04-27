@@ -1,42 +1,79 @@
-import fetch from 'node-fetch';
 import { storage } from '../storage';
-import slugify from 'slugify';
+import { ElectoralSeat } from '@shared/schema';
 
-// Cache for postcode lookups
-const postcodeCache = new Map<string, string[]>();
+// Static mapping of postcodes to electorates
+// This is a simplified implementation for demo purposes - in a production app,
+// you would use a more complete database or API for this data
+const POSTCODE_TO_ELECTORATES: Record<string, string[]> = {
+  // Sydney area
+  '2000': ['Sydney', 'Wentworth'],
+  '2010': ['Sydney'],
+  '2011': ['Sydney', 'Wentworth'],
+  '2060': ['North Sydney'],
+  '2065': ['North Sydney'],
+  '2088': ['Warringah'],
+  
+  // Melbourne area
+  '3000': ['Melbourne'],
+  '3004': ['Macnamara'],
+  '3053': ['Melbourne'],
+  '3121': ['Kooyong'],
+  '3141': ['Higgins'],
+  '3182': ['Macnamara'],
+  
+  // Brisbane area
+  '4000': ['Brisbane'],
+  '4006': ['Brisbane'],
+  '4101': ['Griffith'],
+  '4064': ['Ryan'],
+  '4068': ['Ryan'],
+  
+  // Perth area
+  '6000': ['Perth'],
+  '6003': ['Perth'],
+  '6050': ['Perth'],
+  '6100': ['Swan'],
+  '6151': ['Tangney'],
+  
+  // Adelaide area
+  '5000': ['Adelaide'],
+  '5006': ['Adelaide'],
+  '5067': ['Sturt'],
+  '5034': ['Boothby'],
+  
+  // Canberra area
+  '2600': ['Canberra'],
+  '2602': ['Canberra'],
+  '2617': ['Fenner'],
+  
+  // Hobart area
+  '7000': ['Clark'],
+  '7004': ['Clark'],
+  '7050': ['Franklin'],
+  
+  // Darwin area
+  '0800': ['Solomon'],
+  '0810': ['Solomon'],
+  '0820': ['Solomon']
+};
 
 /**
- * Searches for electoral divisions by postcode using the AEC website API
+ * Gets electorate names associated with a postcode using a static lookup table
  */
 export async function getElectoratesByPostcode(postcode: string): Promise<string[]> {
   try {
-    // Check cache first
-    if (postcodeCache.has(postcode)) {
-      return postcodeCache.get(postcode)!;
+    // Validate postcode format
+    if (!/^\d{4}$/.test(postcode)) {
+      console.log(`Invalid postcode format: ${postcode}`);
+      return [];
     }
 
-    // AEC does not offer a public API for this, so we'll simulate the lookup with the data we have
-    // For a real application, you would ideally use the AEC API or create a proper postcode database
-    
-    // Format: https://electorate.aec.gov.au/LocalitySearchResults.aspx?filter=<postcode>&filterby=Postcode
-    const url = `https://electorate.aec.gov.au/LocalitySearchResults.aspx?filter=${postcode}&filterby=Postcode`;
-    
-    // In a real application, you would fetch and parse the HTML response
-    // Since we can't easily do that here, we'll use our existing data to match postcodes based on common naming patterns
-    
-    // Fetch all existing seats
-    const allSeats = await storage.getElectoralSeats();
-    
-    // Match by name similarity with the postcode
-    // This is a simplified approximation - in a real app you would parse the actual AEC response
-    const matches = allSeats.map(seat => seat.slug);
-    
-    // Store in cache
-    postcodeCache.set(postcode, matches);
-    
-    return matches;
+    // Look up in our static mapping
+    const electorates = POSTCODE_TO_ELECTORATES[postcode] || [];
+    console.log(`Postcode ${postcode} maps to electorates: ${electorates.join(', ')}`);
+    return electorates;
   } catch (error) {
-    console.error(`Error finding electorates for postcode ${postcode}:`, error);
+    console.error('Error in postcode lookup:', error);
     return [];
   }
 }
@@ -44,33 +81,40 @@ export async function getElectoratesByPostcode(postcode: string): Promise<string
 /**
  * Updates the DatabaseStorage searchElectoralSeatsByPostcode method to use real AEC data
  */
-export async function searchSeatsByPostcode(postcode: string) {
+export async function searchSeatsByPostcode(postcode: string): Promise<ElectoralSeat[]> {
   try {
-    // For testing/development, if the postcode is not numeric, just do a name search
-    if (!/^\d{4}$/.test(postcode)) {
-      return storage.searchElectoralSeatsByName(postcode);
+    // Get electorate names from AEC API
+    const electorateNames = await getElectoratesByPostcode(postcode);
+    
+    if (electorateNames.length === 0) {
+      console.log(`No electorates found for postcode ${postcode}`);
+      return [];
     }
     
-    // Get electorate slugs for this postcode
-    const electorateSlugs = await getElectoratesByPostcode(postcode);
+    // Find matching seats in our database
+    const seats: ElectoralSeat[] = [];
     
-    if (electorateSlugs.length === 0) {
-      // If no direct matches, try searching by name as fallback
-      return storage.searchElectoralSeatsByName(postcode);
+    for (const name of electorateNames) {
+      // Search for seats with matching name 
+      // (case insensitive and allowing for slight differences in naming)
+      const allSeats = await storage.getElectoralSeats();
+      
+      const matchingSeats = allSeats.filter(seat => {
+        // Direct match
+        if (seat.name.toLowerCase() === name.toLowerCase()) return true;
+        
+        // Match with "electorate" removed
+        const cleanName = name.toLowerCase().replace(/\s*electorate\s*/i, '');
+        return seat.name.toLowerCase() === cleanName;
+      });
+      
+      seats.push(...matchingSeats);
     }
     
-    // Fetch full seat data for each slug
-    const seats = await Promise.all(
-      electorateSlugs.map(async (slug) => {
-        const seat = await storage.getElectoralSeatBySlug(slug);
-        return seat;
-      })
-    );
-    
-    // Filter out undefined values and return
-    return seats.filter(Boolean);
+    console.log(`Found ${seats.length} matching seats for postcode ${postcode}`);
+    return seats;
   } catch (error) {
-    console.error(`Error searching seats by postcode ${postcode}:`, error);
+    console.error('Error in searchSeatsByPostcode:', error);
     return [];
   }
 }
@@ -80,6 +124,5 @@ export async function searchSeatsByPostcode(postcode: string) {
  * real mapping data from AEC, Australia Post, or another authoritative source.
  */
 export function initializePostcodeMapping() {
-  // In a real app, we would load a comprehensive mapping dataset here
   console.log('Postcode mapping service initialized');
 }
