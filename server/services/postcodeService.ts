@@ -1,13 +1,16 @@
 import { storage } from '../storage';
 import { ElectoralSeat } from '@shared/schema';
 import fetch from 'node-fetch';
+import { parse } from 'csv-parse/sync';
 
 // AEC API configuration
 const AEC_API_KEY = 'b924f84fc0ed4026a1681aa1777eefa4';
 const AEC_API_BASE_URL = 'https://api.aec.gov.au/elections/v1';
+const AEC_POSTCODE_DATA_URL = 'https://www.aec.gov.au/_template/inc/oHGjG11qZEx2aemk.txt';
 
 // Cache for storing API results to reduce API calls
 const divisionCache: { divisions?: any[], timestamp?: number } = {};
+const postcodeCache: { data?: Map<string, string[]>, timestamp?: number } = {};
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Static mapping of postcodes to electorates
@@ -241,8 +244,80 @@ export async function fetchAllDivisions(): Promise<any[]> {
 }
 
 /**
+ * Fetches and processes the AEC postcode mapping data
+ */
+export async function fetchPostcodeData(): Promise<Map<string, string[]>> {
+  try {
+    // Check cache first
+    const now = Date.now();
+    if (postcodeCache.data && postcodeCache.timestamp && 
+        (now - postcodeCache.timestamp < CACHE_TTL)) {
+      console.log('Using cached postcode mapping data');
+      return postcodeCache.data;
+    }
+    
+    // Fetch from AEC data file
+    console.log('Fetching postcode mapping data from AEC');
+    const response = await fetch(AEC_POSTCODE_DATA_URL);
+    
+    if (!response.ok) {
+      throw new Error(`AEC data fetch error: ${response.status} ${response.statusText}`);
+    }
+    
+    const csvData = await response.text();
+    
+    // Parse the CSV data - format is "state;postcode;locality;division"
+    const records = parse(csvData, {
+      delimiter: ';',
+      columns: true,
+      skip_empty_lines: true
+    });
+    
+    // Build a mapping of postcode to division names
+    const postcodeMap = new Map<string, Set<string>>();
+    
+    records.forEach((record: any) => {
+      const postcode = record.postcode;
+      const division = record.division;
+      
+      if (postcode && division) {
+        if (!postcodeMap.has(postcode)) {
+          postcodeMap.set(postcode, new Set<string>());
+        }
+        postcodeMap.get(postcode)?.add(division);
+      }
+    });
+    
+    // Convert Sets to Arrays for easier use
+    const result = new Map<string, string[]>();
+    postcodeMap.forEach((divisions, postcode) => {
+      result.set(postcode, Array.from(divisions));
+    });
+    
+    // Cache the results
+    postcodeCache.data = result;
+    postcodeCache.timestamp = now;
+    
+    console.log(`Processed ${result.size} postcodes and ${records.length} mappings from AEC data`);
+    return result;
+  } catch (error) {
+    console.error('Error fetching postcode mapping data:', error);
+    
+    // If we have cache data that's not too old (< 7 days), use it as fallback
+    if (postcodeCache.data && postcodeCache.timestamp && 
+        (Date.now() - postcodeCache.timestamp < 7 * 24 * 60 * 60 * 1000)) {
+      console.log('Using stale cached postcode data due to fetch error');
+      return postcodeCache.data;
+    }
+    
+    // Otherwise return an empty map
+    return new Map<string, string[]>();
+  }
+}
+
+/**
  * Gets electorate divisions associated with a postcode
- * Uses a combination of AEC API data when available, or falls back to static mapping
+ * Uses official AEC postcode-to-division mapping data, with fallback to static mapping
  */
 export async function getElectoratesByPostcode(postcode: string): Promise<string[]> {
   try {
@@ -252,31 +327,20 @@ export async function getElectoratesByPostcode(postcode: string): Promise<string
       return [];
     }
 
-    // First try the AEC API data
+    // First try the AEC postcode data
     try {
-      const divisions = await fetchAllDivisions();
+      const postcodeMap = await fetchPostcodeData();
       
-      if (divisions && divisions.length > 0) {
-        // Find divisions that include this postcode
-        const matchingDivisions = divisions.filter(division => {
-          // Check if the division has postcodes data
-          if (division.postcodes && Array.isArray(division.postcodes)) {
-            return division.postcodes.includes(postcode);
-          }
-          return false;
-        });
-        
-        if (matchingDivisions.length > 0) {
-          const names = matchingDivisions.map(d => d.name);
-          console.log(`[AEC API] Postcode ${postcode} maps to electorates: ${names.join(', ')}`);
-          return names;
-        }
+      if (postcodeMap.size > 0 && postcodeMap.has(postcode)) {
+        const electorates = postcodeMap.get(postcode) || [];
+        console.log(`[AEC Data] Postcode ${postcode} maps to electorates: ${electorates.join(', ')}`);
+        return electorates;
       }
-    } catch (apiError) {
-      console.error('Error using AEC API for postcode lookup:', apiError);
+    } catch (dataError) {
+      console.error('Error using AEC postcode data:', dataError);
     }
 
-    // If AEC API doesn't have data, fall back to our static mapping
+    // If AEC mapping doesn't have the postcode, fall back to our static mapping
     const electorates = POSTCODE_TO_ELECTORATES[postcode] || [];
     console.log(`[Fallback] Postcode ${postcode} maps to electorates: ${electorates.join(', ')}`);
     return electorates;
@@ -372,14 +436,14 @@ export async function searchSeatsByPostcode(postcode: string): Promise<Electoral
 }
 
 /**
- * Initializes the postcode mapping service by pre-fetching the electoral divisions
- * from the AEC API to ensure they're ready for fast lookups
+ * Initializes the postcode mapping service by pre-fetching both the electoral divisions
+ * and postcode-to-division mappings from the AEC data to ensure they're ready for fast lookups
  */
 export async function initializePostcodeMapping() {
   try {
     console.log('Initializing postcode mapping service with AEC data...');
     
-    // Pre-fetch divisions
+    // Pre-fetch divisions from API
     const divisions = await fetchAllDivisions();
     console.log(`Initialized with ${divisions.length} electoral divisions from AEC API`);
     
@@ -388,11 +452,33 @@ export async function initializePostcodeMapping() {
       console.log('Sample division data:');
       console.log(JSON.stringify(divisions[0], null, 2).slice(0, 500) + '...');
     }
+
+    // Pre-fetch postcode mapping data
+    const postcodeMap = await fetchPostcodeData();
+    console.log(`Loaded ${postcodeMap.size} postcodes to electoral division mappings`);
     
-    return divisions;
+    // Log a few sample postcode mappings for debugging
+    if (postcodeMap.size > 0) {
+      const samplePostcodes = ['2600', '2000', '3000', '4000', '5000', '6000']; // Capital cities
+      
+      for (const postcode of samplePostcodes) {
+        if (postcodeMap.has(postcode)) {
+          const divisions = postcodeMap.get(postcode);
+          console.log(`Sample mapping - Postcode ${postcode} maps to: ${divisions?.join(', ')}`);
+        }
+      }
+    }
+    
+    return {
+      divisions,
+      postcodeMap
+    };
   } catch (error) {
     console.error('Error initializing postcode mapping service:', error);
     console.log('Postcode mapping service initialized with fallback data only');
-    return [];
+    return { 
+      divisions: [],
+      postcodeMap: new Map<string, string[]>()
+    };
   }
 }
