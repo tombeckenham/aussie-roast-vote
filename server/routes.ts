@@ -249,10 +249,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               if (fullContent) {
-                // Create a more complete version for the table (more of the first paragraph)
+                // Create a more complete version for the table (show more content)
+                // If there are paragraphs, use the first 2 paragraphs, otherwise show a larger portion
                 const content = fullContent.includes('\n') 
-                  ? fullContent.split('\n')[0] 
-                  : fullContent.substring(0, 300);
+                  ? fullContent.split('\n').slice(0, 2).join('\n')
+                  : fullContent.substring(0, 600);
                 
                 // Check if we already have a roast for this candidate, to replace it
                 const existingRoast = await storage.getRoastByCandidate(candidate.id);
@@ -471,17 +472,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Generate new commentary using the generateCandidateData function
-      console.log(`Regenerating commentary for ${candidate.name}...`);
-      
-      // First, get party name for better context
-      let partyName = "Independent";
-      if (candidate.partyId) {
-        const party = await storage.getPartyById(candidate.partyId);
-        if (party) {
-          partyName = party.name;
-        }
-      }
+      // Generate new commentary
+      console.log(`Regenerating commentary for ${candidate.name}...`)
       
       // Import the services we need
       const { default: perplexityService } = await import("./services/perplexityService");
@@ -499,10 +491,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rawData
       );
       
-      // Create a truncated version for the card view
+      // Create a more complete version for the card view (show more content)
+      // If there are paragraphs, use the first 2 paragraphs, otherwise show a larger portion
       const content = fullContent.includes('\n') 
-        ? fullContent.split('\n')[0] 
-        : fullContent.substring(0, 300);
+        ? fullContent.split('\n').slice(0, 2).join('\n')
+        : fullContent.substring(0, 600);
       
       // Create new roast
       await storage.createRoast({

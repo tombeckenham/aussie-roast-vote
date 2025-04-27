@@ -265,11 +265,10 @@ export async function processCandidatePerplexityData(
     const prompt = `
       I have raw research data about Australian politician ${candidateName} 
       ${partyName ? `from the ${partyName} party` : "who is an Independent candidate"}.
+      Create an Aussie style summary of the candidate using this data. Really take the piss out them and their policies.
       
       Here's the raw data:
-      ${rawData}
-      
-      Create an Aussie style summary of the candidate using this data. Really take the piss out them and their policies`;
+      ${rawData}`;
 
     // Make the request to xAI
     const response = await openai.chat.completions.create({
