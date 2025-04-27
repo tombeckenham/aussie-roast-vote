@@ -8,6 +8,8 @@ import {
   generateCandidateRoast, 
   generateCampaignActivities 
 } from './grok';
+import perplexityService from './perplexityService';
+import xaiService from './xaiService';
 
 // Generate candidates for an electoral seat if none exist
 export async function ensureCandidatesForSeat(seatId: number): Promise<void> {
@@ -166,19 +168,54 @@ export async function generateCandidateData(candidateId: number): Promise<void> 
   const existingRoast = await storage.getRoastByCandidate(candidateId);
   if (!existingRoast) {
     try {
-      const roastResult = await generateCandidateRoast(
-        candidate.name,
-        partyName,
-        candidate.keyPolicies || [],
-        candidate.bio || "",
-        seat.name
-      );
+      // Try the combined Perplexity+xAI approach for better data
+      let fullContent = "";
+      let content = "";
+      try {
+        // First, get raw factual data from Perplexity
+        console.log(`Getting Perplexity raw data for ${candidate.name}...`);
+        const rawData = await perplexityService.getCandidateRawData(
+          candidate,
+          seat.name,
+        );
+        
+        // Second, have xAI process it into a humorous commentary
+        console.log(`Processing Perplexity data with xAI for ${candidate.name}...`);
+        fullContent = await xaiService.processCandidatePerplexityData(
+          candidate.name,
+          partyName,
+          rawData
+        );
+        
+        // Create a more complete version for the table (more of the first paragraph)
+        content = fullContent.includes('\n') 
+          ? fullContent.split('\n')[0] 
+          : fullContent.substring(0, 300);
+        
+        console.log(`Generated combined Perplexity+xAI commentary for: ${candidate.name}`);
+      } catch (error) {
+        console.error(
+          `Error in combined approach, falling back to xAI only: ${(error as Error).message}`,
+        );
+        // Fall back to xAI only if the combined approach fails
+        const roastResult = await generateCandidateRoast(
+          candidate.name,
+          partyName,
+          candidate.keyPolicies || [],
+          candidate.bio || "",
+          seat.name
+        );
+        
+        content = roastResult.content;
+        fullContent = roastResult.fullContent;
+        console.log(`Generated xAI-only commentary for: ${candidate.name}`);
+      }
 
       const roastData: InsertAiRoast = {
         candidateId,
-        content: roastResult.content,
-        fullContent: roastResult.fullContent,
-        isSpicy: roastResult.isSpicy
+        content,
+        fullContent,
+        isSpicy: false
       };
 
       await storage.createRoast(roastData);
