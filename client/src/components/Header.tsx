@@ -5,7 +5,7 @@ const Header = () => {
   const electionDate = new Date("2025-05-17");
   const today = new Date();
   const daysToElection = Math.ceil(
-    (electionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    (electionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
 
   return (
@@ -13,7 +13,7 @@ const Header = () => {
       <div className="container mx-auto py-4 px-4 md:px-6 flex flex-col md:flex-row items-center justify-between">
         <div className="flex items-center mb-4 md:mb-0">
           <Link href="/">
-            <a className="flex items-center">
+            <div className="flex items-center">
               <svg
                 className="w-10 h-10 rounded-full mr-3"
                 viewBox="0 0 100 100"
@@ -32,7 +32,7 @@ const Header = () => {
               <h1 className="font-heading font-bold text-2xl md:text-3xl">
                 Aussie<span className="text-aussie-gold">Roast</span>Politics
               </h1>
-            </a>
+            </div>
           </Link>
         </div>
         <div className="flex items-center space-x-4">

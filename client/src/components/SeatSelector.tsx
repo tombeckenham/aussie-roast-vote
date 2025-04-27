@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import AustraliaMap from "./ui/australia-map";
 
 interface SeatSelectorProps {
@@ -34,8 +35,17 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   });
 
   const { data: localities } = useQuery<Locality[]>({
-    queryKey: ["/api/locality/search?q=", debouncedSearchTerm],
+    queryKey: ["/api/locality/search", debouncedSearchTerm],
     enabled: !!debouncedSearchTerm,
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/locality/search?q=${encodeURIComponent(debouncedSearchTerm)}`,
+      );
+      if (!response.ok) {
+        throw new Error("Failed to search localities");
+      }
+      return response.json();
+    },
   });
   // State to store search results
   const [searchResults, setSearchResults] = useState<ElectoralSeat[]>([]);

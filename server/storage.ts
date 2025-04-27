@@ -393,17 +393,18 @@ export class MemStorage implements IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  searchLocalitiesByQuery(query: string) {
-      return db
-        .select()
-        .from(localities)
-        .where(
-          or(
-            ilike(localities.postcode, `%${query}%`),
-            ilike(localities.locality, `%${query}%`),
-            ilike(localities.divisionName, `%${query}%`)
-          )
-        );
+  async searchLocalitiesByQuery(query: string): Promise<Locality[]> {
+    return db
+      .select()
+      .from(localities)
+      .where(
+        or(
+          // ilike is often used to perform a case-insensitive pattern match
+          ilike(localities.postcode, `%${query}%`),
+          ilike(localities.locality, `%${query}%`),
+          ilike(localities.divisionName, `%${query}%`),
+        ),
+      );
   }
   async getLocalitiesByPostcode(postcode: string): Promise<Locality[]> {
     return db

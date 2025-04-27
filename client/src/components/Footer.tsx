@@ -7,24 +7,35 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <Link href="/">
-              <a className="inline-block">
+              <div className="inline-block">
                 <h2 className="font-heading font-bold text-xl">
                   Aussie<span className="text-aussie-gold">Roast</span>Politics
                 </h2>
-              </a>
+              </div>
             </Link>
-            <p className="text-sm opacity-75 mt-1">Democracy with a side of banter</p>
+            <p className="text-sm opacity-75 mt-1">
+              Democracy with a side of banter
+            </p>
           </div>
-          
+
           <div className="text-center md:text-right">
             <div className="flex space-x-4 mb-2 justify-center md:justify-end">
-              <a href="#" className="text-white hover:text-aussie-gold transition-colors">
+              <a
+                href="#"
+                className="text-white hover:text-aussie-gold transition-colors"
+              >
                 <i className="fab fa-twitter"></i>
               </a>
-              <a href="#" className="text-white hover:text-aussie-gold transition-colors">
+              <a
+                href="#"
+                className="text-white hover:text-aussie-gold transition-colors"
+              >
                 <i className="fab fa-facebook"></i>
               </a>
-              <a href="#" className="text-white hover:text-aussie-gold transition-colors">
+              <a
+                href="#"
+                className="text-white hover:text-aussie-gold transition-colors"
+              >
                 <i className="fab fa-instagram"></i>
               </a>
             </div>

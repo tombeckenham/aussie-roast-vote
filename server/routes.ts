@@ -55,9 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const searchQuery = (q as string).trim();
 
-      const localities = findLocalitiesByQuery(searchQuery);
-      console.log("found localities", searchQuery, localities);
-      return res.json(localities);
+      const localityResult = await findLocalitiesByQuery(searchQuery);
+      return res.json(localityResult);
     } catch (error) {
       console.error("Error searching seats:", error);
       res.status(500).json({ message: "Failed to search electoral seats" });
