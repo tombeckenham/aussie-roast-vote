@@ -2,10 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 
-interface SeatSelectorProps {
-  onSeatSelect: (seatSlug: string) => void;
-}
-
 interface ElectoralSeat {
   id: number;
   name: string;
@@ -23,16 +19,10 @@ type Locality = {
 // Debounce delay in milliseconds
 const DEBOUNCE_DELAY = 300;
 
-const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
+const SeatSelector = ({}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [, setLocation] = useLocation();
-
-  // Query electoral seats
-  const { data: seats } = useQuery<ElectoralSeat[]>({
-    queryKey: ["/api/seats"],
-    initialData: [],
-  });
 
   const { data: localityData } = useQuery<{
     localities: Locality[];
@@ -54,8 +44,6 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     },
   });
   const { localities, resultSearchTerm } = localityData || {};
-  // State to store search results
-  const [searchResults, setSearchResults] = useState<ElectoralSeat[]>([]);
 
   // Debounce search term
   useEffect(() => {
@@ -105,12 +93,6 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
               <h4 className="font-heading font-bold text-lg">
                 {searchTerm ? "Search Results:" : "Popular Electorates:"}
               </h4>
-              {searchResults.length > 0 && searchTerm && (
-                <span className="text-sm bg-aussie-green/10 text-aussie-green font-semibold rounded-full px-3 py-1">
-                  {searchResults.length}{" "}
-                  {searchResults.length === 1 ? "seat" : "seats"} found
-                </span>
-              )}
             </div>
             <div className="bg-light-bg rounded-lg p-2">
               {localities && localities.length > 0 ? (

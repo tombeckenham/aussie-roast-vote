@@ -13,9 +13,7 @@ const Layout = ({ children }: LayoutProps) => {
       <main className="flex-grow container mx-auto py-8 px-4 md:px-6 mb-16">
         {children}
       </main>
-      <div className="mt-auto">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 };

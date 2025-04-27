@@ -51,6 +51,9 @@ const CandidateTable = ({
   const [generatingCaricature, setGeneratingCaricature] = useState<
     number | null
   >(null);
+  const [generatingPolicies, setGeneratingPolicies] = useState<
+    number | null
+  >(null);
   const [commentariesState, setCommentaries] = useState<Record<number, string>>(
     {},
   );
@@ -222,9 +225,51 @@ const CandidateTable = ({
           <CardContent className="flex flex-col">
             {/* Key Policies */}
             <div className="mb-2">
-              <h4 className="text-sm font-semibold text-muted-foreground mb-1">
-                Key Policies
-              </h4>
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Key Policies
+                </h4>
+                {candidate.keyPolicies && candidate.keyPolicies.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    disabled={generatingPolicies === candidate.id}
+                    onClick={() => {
+                      // Set loading state for this candidate
+                      setGeneratingPolicies(candidate.id);
+                      
+                      // Trigger policy regeneration for this candidate
+                      fetch(
+                        `/api/candidates/${candidate.id}/generate-policies?force=true`,
+                        {
+                          method: "POST",
+                        },
+                      ).then(() => {
+                        // Invalidate the candidate query to refresh the data
+                        queryClient.invalidateQueries({
+                          queryKey: [`/api/seats/${seatId}/candidates`],
+                        });
+                        setGeneratingPolicies(null);
+                      }).catch(() => {
+                        setGeneratingPolicies(null);
+                      });
+                    }}
+                  >
+                    {generatingPolicies === candidate.id ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        <span className="text-xs">Regenerating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        <span className="text-xs">Regenerate</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
               <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
                   candidate.keyPolicies
