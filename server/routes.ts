@@ -213,14 +213,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let fullContent;
               try {
                 // Use Perplexity service for up-to-date information
-                fullContent =
-                  await perplexityService.generateCandidateCommentary(
-                    candidate,
-                    seat.name,
-                  );
-                console.log(
-                  `Generated Perplexity commentary for: ${candidate.name}`,
+                console.log(`Generating Perplexity commentary for ${candidate.name}, ${candidate.partyId}...`);
+                fullContent = await perplexityService.generateCandidateCommentary(
+                  candidate,
+                  seat.name,
                 );
+                console.log(`Successfully generated Perplexity commentary for ${candidate.name}`);
+                console.log(`Generated Perplexity commentary for: ${candidate.name}`);
               } catch (error) {
                 const perplexityError = error as Error;
                 console.error(

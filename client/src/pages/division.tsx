@@ -67,10 +67,6 @@ const DivisionPage = () => {
     }
   });
   
-  const handleGenerateCommentary = () => {
-    generateCommentaryMutation.mutate();
-  };
-  
   // Effect to trigger commentary generation when seat data loads
   useEffect(() => {
     let refreshInterval: NodeJS.Timeout | null = null;
@@ -99,6 +95,10 @@ const DivisionPage = () => {
       }
     };
   }, [seat?.id, seat?.name, generatingCommentary, queryClient, generateCommentaryMutation]);
+  
+  const handleGenerateCommentary = () => {
+    generateCommentaryMutation.mutate();
+  };
 
   const handleViewCandidate = (id: number) => {
     setLocation(`/candidate/${id}`);
