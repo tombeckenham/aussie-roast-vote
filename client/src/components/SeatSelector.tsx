@@ -51,13 +51,8 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     try {
       setIsSearching(true);
       
-      // Determine if the search term is a postcode (4 digits) or a name
-      const isPostcode = /^\d{4}$/.test(term);
-      
-      // Build the search URL based on the search term type
-      const searchUrl = isPostcode
-        ? `/api/seats/search?postcode=${encodeURIComponent(term)}`
-        : `/api/seats/search?query=${encodeURIComponent(term)}`;
+      // Use the unified search endpoint with a single query parameter
+      const searchUrl = `/api/seats/search?q=${encodeURIComponent(term)}`;
       
       // Fetch search results
       const res = await fetch(searchUrl);
@@ -96,6 +91,22 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     onSeatSelect(slug);
   };
 
+  // On component load, fetch popular seats
+  useEffect(() => {
+    // Load a few popular electorates on initial render
+    if (!searchTerm && !debouncedSearchTerm) {
+      fetch('/api/seats/search?q=e')
+        .then(res => res.json())
+        .then(results => {
+          // Limit to a few results for initial display
+          setSearchResults(results.slice(0, 6));
+        })
+        .catch(error => {
+          console.error("Error fetching initial results:", error);
+        });
+    }
+  }, []);
+
   return (
     <section className="mb-12 bg-white rounded-xl shadow-lg p-6 max-w-4xl mx-auto">
       <h3 className="font-heading font-bold text-2xl mb-6 text-center">
@@ -119,37 +130,35 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
             )}
           </div>
 
-          {(searchTerm && !isSearching) || searchResults.length > 0 ? (
-            <div className="mt-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-heading font-bold text-lg">Search Results:</h4>
-                {searchResults.length > 0 && (
-                  <span className="text-sm bg-aussie-green/10 text-aussie-green font-semibold rounded-full px-3 py-1">
-                    {searchResults.length} {searchResults.length === 1 ? 'seat' : 'seats'} found
-                  </span>
-                )}
-              </div>
-              <div className="bg-light-bg rounded-lg p-2">
-                {searchResults.length > 0 ? (
-                  searchResults.map((seat) => (
-                    <button
-                      key={seat.id}
-                      className="block w-full text-left px-3 py-2 hover:bg-aussie-gold/20 rounded-md transition-colors"
-                      onClick={() => handleSeatClick(seat.slug)}
-                    >
-                      <span className="font-semibold">{seat.name}</span>, {seat.state}
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-3 text-center text-gray-500">
-                    {searchTerm.length >= 2 ? 
-                      `No results found for "${searchTerm}". Try a different search term or postcode.` : 
-                      'Type at least 2 characters to search'}
-                  </div>
-                )}
-              </div>
+          <div className="mt-4">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-heading font-bold text-lg">{searchTerm ? 'Search Results:' : 'Popular Electorates:'}</h4>
+              {searchResults.length > 0 && searchTerm && (
+                <span className="text-sm bg-aussie-green/10 text-aussie-green font-semibold rounded-full px-3 py-1">
+                  {searchResults.length} {searchResults.length === 1 ? 'seat' : 'seats'} found
+                </span>
+              )}
             </div>
-          ) : null}
+            <div className="bg-light-bg rounded-lg p-2">
+              {searchResults.length > 0 ? (
+                searchResults.map((seat) => (
+                  <button
+                    key={seat.id}
+                    className="block w-full text-left px-3 py-2 hover:bg-aussie-gold/20 rounded-md transition-colors"
+                    onClick={() => handleSeatClick(seat.slug)}
+                  >
+                    <span className="font-semibold">{seat.name}</span>, {seat.state}
+                  </button>
+                ))
+              ) : (
+                <div className="p-3 text-center text-gray-500">
+                  {searchTerm.length >= 2 ? 
+                    `No results found for "${searchTerm}". Try a different search term or postcode.` : 
+                    'Type at least 2 characters to search'}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         
         <div className="md:w-1/2 bg-light-bg rounded-lg p-4 relative min-h-[250px]">

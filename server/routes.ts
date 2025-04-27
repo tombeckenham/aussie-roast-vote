@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import {
-  insertCandidateQASchema
+  insertCandidateQASchema,
+  ElectoralSeat
 } from "@shared/schema";
 import { ensureCandidatesForSeat, generateCandidateData } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
@@ -24,24 +25,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/seats/search", async (req: Request, res: Response) => {
     try {
-      const { query, postcode } = req.query;
+      const { q } = req.query;
       
-      if (postcode) {
-        // Use the new postcode lookup service
-        const seats = await searchSeatsByPostcode(postcode as string);
-        console.log(`Searched for postcode ${postcode}, found ${seats.length} seats`);
-        return res.json(seats);
+      if (!q) {
+        // If no query provided, return empty results
+        return res.json([]);
       }
       
-      if (query) {
-        const seats = await storage.searchElectoralSeatsByName(query as string);
-        console.log(`Searched for query ${query}, found ${seats.length} seats`);
-        return res.json(seats);
+      const searchQuery = q as string;
+      let results: ElectoralSeat[] = [];
+      
+      // 1. Check if it's a postcode (4 digits)
+      if (/^\d{4}$/.test(searchQuery)) {
+        const postcodeResults = await searchSeatsByPostcode(searchQuery);
+        results = [...postcodeResults];
       }
       
-      // If no query or postcode, return all seats
-      const seats = await storage.getElectoralSeats();
-      res.json(seats);
+      // 2. Search by name and add any results not already included
+      const nameResults = await storage.searchElectoralSeatsByName(searchQuery);
+      
+      // Combine results, avoiding duplicates
+      const existingIds = new Set(results.map(seat => seat.id));
+      for (const seat of nameResults) {
+        if (!existingIds.has(seat.id)) {
+          results.push(seat);
+          existingIds.add(seat.id);
+        }
+      }
+      
+      console.log(`Unified search for "${searchQuery}" found ${results.length} seats`);
+      return res.json(results);
     } catch (error) {
       console.error("Error searching seats:", error);
       res.status(500).json({ message: "Failed to search electoral seats" });
