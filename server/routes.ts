@@ -154,6 +154,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Server error" });
     }
   });
+  
+  // Generate roasts for all candidates in a seat at once
+  app.post("/api/seats/:seatId/generate-roasts", async (req: Request, res: Response) => {
+    try {
+      const seatId = parseInt(req.params.seatId, 10);
+      
+      if (isNaN(seatId)) {
+        return res.status(400).json({ message: "Invalid seat ID" });
+      }
+      
+      const seat = await storage.getElectoralSeatById(seatId);
+      if (!seat) {
+        return res.status(404).json({ message: "Seat not found" });
+      }
+      
+      // Get all candidates for this seat
+      const candidates = await storage.getCandidatesByElectoralSeat(seatId);
+      
+      if (candidates.length === 0) {
+        return res.status(404).json({ message: "No candidates found for this seat" });
+      }
+      
+      console.log(`Generating roasts for all ${candidates.length} candidates in ${seat.name}...`);
+      
+      // Import the xAI service
+      const { default: xaiService } = await import('./services/xaiService');
+      
+      // Generate roasts for each candidate
+      const roastResults: Record<number, string> = {};
+      
+      for (const candidate of candidates) {
+        console.log(`Generating roast for ${candidate.name}...`);
+        
+        // Check if roast already exists
+        let existingRoast = await storage.getRoastByCandidate(candidate.id);
+        
+        if (!existingRoast) {
+          // Generate a new roast if one doesn't exist
+          const fullContent = await xaiService.generateCandidateRoast(candidate);
+          
+          if (fullContent) {
+            // Create a shortened version for the table
+            const content = fullContent.split('\n')[0] || fullContent.substring(0, 100);
+            
+            // Save to database
+            const roast = await storage.createRoast({
+              candidateId: candidate.id,
+              content,
+              fullContent,
+            });
+            
+            roastResults[candidate.id] = content;
+          }
+        } else {
+          roastResults[candidate.id] = existingRoast.content;
+        }
+      }
+      
+      res.json({
+        seatId,
+        seatName: seat.name,
+        roasts: roastResults
+      });
+    } catch (error) {
+      console.error("Error generating roasts:", error);
+      res.status(500).json({ message: "Failed to generate roasts" });
+    }
+  });
 
   // Candidates API
   app.get(

@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import SeatInfo from "@/components/SeatInfo";
 import CandidateTable from "@/components/CandidateTable";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Zap } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ElectoralSeat {
   id: number;
@@ -25,12 +27,50 @@ const DivisionPage = () => {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug || "";
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [generatingRoasts, setGeneratingRoasts] = useState(false);
   
   // Get the seat info
   const { data: seat, isLoading: seatLoading, error: seatError } = useQuery<ElectoralSeat>({
     queryKey: [`/api/seats/${slug}`],
     enabled: !!slug,
   });
+
+  // Generate roasts for all candidates in this seat
+  const generateRoastsMutation = useMutation({
+    mutationFn: async () => {
+      setGeneratingRoasts(true);
+      // Make sure we have a valid seat id
+      if (!seat?.id) throw new Error("Invalid seat ID");
+      
+      const response = await apiRequest("POST", `/api/seats/${seat.id}/generate-roasts`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Invalidate candidate queries to refresh the table
+      queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/candidates`] });
+      
+      toast({
+        title: "Roasts generated!",
+        description: `Successfully generated ${Object.keys(data.roasts).length} aussie-style roasts for candidates in ${data.seatName}`,
+      });
+      setGeneratingRoasts(false);
+    },
+    onError: (error) => {
+      console.error("Error generating roasts:", error);
+      toast({
+        title: "Failed to generate roasts",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+      setGeneratingRoasts(false);
+    }
+  });
+  
+  const handleGenerateRoasts = () => {
+    generateRoastsMutation.mutate();
+  };
 
   const handleViewCandidate = (id: number) => {
     setLocation(`/candidate/${id}`);
@@ -92,7 +132,34 @@ const DivisionPage = () => {
       </div>
       
       <div className="bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-aussie-blue mb-6">Candidates</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-aussie-blue">Candidates</h2>
+          <Button 
+            onClick={handleGenerateRoasts}
+            disabled={generatingRoasts}
+            className="bg-gradient-to-r from-aussie-green to-aussie-blue hover:from-aussie-blue hover:to-aussie-green text-white"
+          >
+            {generatingRoasts ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <Zap className="mr-2 h-4 w-4" /> Roast All Candidates
+              </>
+            )}
+          </Button>
+        </div>
+        
+        {generatingRoasts && (
+          <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-lg">
+            <p className="text-sm">
+              <span className="font-bold">Generating roasts:</span> Aussie-style roasts are being generated for all {seat.name} candidates. This might take 10-20 seconds per candidate.
+            </p>
+          </div>
+        )}
+        
         <CandidateTable seatId={seat?.id} onViewCandidate={handleViewCandidate} />
       </div>
     </div>
