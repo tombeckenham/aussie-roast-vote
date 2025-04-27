@@ -214,11 +214,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 // Use Perplexity service for up-to-date information
                 console.log(`Generating Perplexity commentary for ${candidate.name}, ${candidate.partyId}...`);
-                fullContent = await perplexityService.generateCandidateCommentary(
+                
+                // Get structured data from Perplexity
+                const rawResponse = await perplexityService.generateCandidateCommentary(
                   candidate,
                   seat.name,
                 );
-                console.log(`Successfully generated Perplexity commentary for ${candidate.name}`);
+                
+                // The full commentary is returned as a string by the service for backward compatibility
+                fullContent = rawResponse;
+                console.log(`Successfully generated Perplexity structured data for ${candidate.name}`);
+                
                 console.log(`Generated Perplexity commentary for: ${candidate.name}`);
               } catch (error) {
                 const perplexityError = error as Error;

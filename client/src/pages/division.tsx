@@ -67,23 +67,32 @@ const DivisionPage = () => {
     }
   });
   
-  // Effect to trigger commentary generation when seat data loads
+  // Effect to trigger commentary generation when seat data loads (only once)
   useEffect(() => {
     let refreshInterval: NodeJS.Timeout | null = null;
+    let hasGenerated = false; // Flag to track if we've already triggered generation
     
-    if (seat?.id) {
+    if (seat?.id && !hasGenerated) {
       console.log("Auto-generating commentaries for seat:", seat.name);
+      hasGenerated = true; // Set flag to prevent re-triggering
       
-      // First generate the commentaries
-      generateCommentaryMutation.mutate();
+      // Generate commentaries only if we haven't already triggered it
+      if (!generateCommentaryMutation.isPending) {
+        generateCommentaryMutation.mutate();
+      }
       
       // Setup polling to refresh commentaries every few seconds
       refreshInterval = setInterval(() => {
         if (generatingCommentary) {
           queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
           console.log("Refreshing commentaries for seat:", seat.name);
-        } else if (refreshInterval) {
-          clearInterval(refreshInterval);
+        } else {
+          // Clear interval when we're done generating
+          if (refreshInterval) {
+            console.log("Clearing refresh interval - generation complete");
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+          }
         }
       }, 3000); // Poll every 3 seconds while generating
     }
@@ -91,10 +100,11 @@ const DivisionPage = () => {
     // Clean up interval on unmount
     return () => {
       if (refreshInterval) {
+        console.log("Cleaning up interval on component unmount");
         clearInterval(refreshInterval);
       }
     };
-  }, [seat?.id, seat?.name, generatingCommentary, queryClient, generateCommentaryMutation]);
+  }, [seat?.id]);
   
   const handleGenerateCommentary = () => {
     generateCommentaryMutation.mutate();
