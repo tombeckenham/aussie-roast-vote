@@ -49,8 +49,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Run all search methods in parallel to cover all cases properly
       
-      // 1. Check if it's a postcode (4 digits)
-      if (/^\d{4}$/.test(searchQuery)) {
+      // 1. Check if it's a postcode (3-4 digits)
+      if (/^\d{3,4}$/.test(searchQuery)) {
         console.log(`Searching for postcode: ${searchQuery}`);
         // Use both search methods to ensure complete and correct results
         const postcodeResults = await searchSeatsByPostcode(searchQuery);
@@ -62,6 +62,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const aecResults = await findElectoralSeatsByPostcode(searchQuery);
         for (const seat of aecResults) {
           uniqueResults.set(seat.id, seat);
+        }
+        
+        // If we still don't have results, check directly with AEC data
+        // and create virtual seat objects for the missing divisions
+        if (uniqueResults.size === 0) {
+          const divisionNames = findDivisionsByPostcode(searchQuery);
+          if (divisionNames.length > 0) {
+            console.log(`Found divisions in AEC data for ${searchQuery}: ${divisionNames.join(', ')}`);
+            
+            for (const division of divisionNames) {
+              const details = getDivisionDetailsByName(division);
+              if (details) {
+                // Create a virtual seat object for display purposes
+                // with a negative ID to avoid conflicts
+                const virtualSeat: ElectoralSeat = {
+                  id: -1 * Math.floor(Math.random() * 1000), // Negative random ID
+                  name: details.Name,
+                  slug: details.Name.toLowerCase().replace(/\s+/g, '-'),
+                  state: details.State,
+                  description: `Electoral division of ${details.Name} in ${details.State}.`,
+                  isMarginial: false,
+                  currentMp: null,
+                  currentParty: null,
+                  keyIssues: [],
+                  previousResults: {},
+                  position: null
+                };
+                
+                uniqueResults.set(virtualSeat.id, virtualSeat);
+                console.log(`Created virtual seat for ${details.Name} (${details.State})`);
+              }
+            }
+          }
         }
       }
       
@@ -94,8 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { postcode } = req.params;
       
-      if (!postcode || !/^\d{4}$/.test(postcode)) {
-        return res.status(400).json({ message: "Invalid postcode format. Must be 4 digits." });
+      if (!postcode || !/^\d{3,4}$/.test(postcode)) {
+        return res.status(400).json({ message: "Invalid postcode format. Must be 3-4 digits." });
       }
       
       // First get all division names for this postcode
