@@ -424,6 +424,72 @@ export async function generateCaricatureImage(
   }
 }
 
+/**
+ * Generate short policy sentences for a candidate using xAI
+ * @param candidate The candidate to generate policies for
+ * @param rawData Optional perplexity raw data to extract policies from
+ * @returns Array of policy sentences
+ */
+export async function generateCandidatePolicies(
+  candidate: Candidate,
+  rawData?: string
+): Promise<string[]> {
+  try {
+    console.log(`Generating policy highlights for ${candidate.name}...`);
+
+    // Create a prompt for policy generation
+    const prompt = `
+      Generate 3 short policy positions for Australian politician ${candidate.name} 
+      from the ${candidate.partyBallotName || "Independent"} party.
+      
+      ${rawData ? `Use this raw data about them: ${rawData.substring(0, 1000)}...` : ''}
+      
+      Requirements:
+      - Each policy should be a single sentence (max 20 words)
+      - Be specific and clear about the policy position
+      - Align with typical positions of ${candidate.partyBallotName || "Independent"} candidates
+      - Focus on issues that are important in Australian politics
+      - Format should be actionable statements (e.g., "Will increase funding for...")
+      
+      Return only a JSON array of exactly 3 policy strings without any explanation or comments:
+      ["Policy 1", "Policy 2", "Policy 3"]
+    `;
+
+    // Make the request to xAI
+    const response = await openai.chat.completions.create({
+      model: "grok-3-beta", // Using the text model
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_tokens: 300,
+      temperature: 0.6,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    console.log(`Generated policies for: ${candidate.name}`);
+    
+    try {
+      if (content) {
+        const policies = JSON.parse(content);
+        if (Array.isArray(policies) && policies.length > 0) {
+          return policies.slice(0, 3); // Ensure we only return max 3 policies
+        }
+      }
+      return ["Policy information not available"];
+    } catch (parseError) {
+      console.error(`Error parsing policy JSON for ${candidate.name}:`, parseError);
+      return ["Error generating policies"];
+    }
+  } catch (error) {
+    console.error(`Error generating policies for ${candidate.name}:`, error);
+    return ["Failed to generate policies"];
+  }
+}
+
 export default {
   generateCandidateCaricature,
   generateCandidateRoast,
@@ -431,4 +497,5 @@ export default {
   generateCampaignActivities,
   processCandidatePerplexityData,
   generateCaricatureImage,
+  generateCandidatePolicies,
 };
