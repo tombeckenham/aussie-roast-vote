@@ -39,19 +39,27 @@ class PerplexityService {
         ? `who is running for the political party with ID ${candidate.partyId}`
         : "who is running as an Independent";
 
-      const prompt = `Research and provide information about ${candidate.name}, ${partyInfo}, who is running for the ${electorateName} electorate in the 2025 Australian federal election. 
+      const prompt = `Research and provide information about ${candidate.name}, ${partyInfo}, who is running for the ${electorateName} electorate in the 2025 Australian federal election.
 
-Please return the results in a JSON format with the following structure:
-{
-  "overviewRoast": "A witty, satirical overview of the candidate that roasts them in good Aussie fashion",
-  "policySummary": "Summary of key policies and political positions",
-  "trackRecord": "Information about their background and political history",
-  "whyVoteForThem": "Satirical reasons to vote for them",
-  "imageSearchTerms": ["5-10 specific descriptive terms that could help generate a caricature image"],
-  "fullCommentary": "The combined full text as a narrative"
-}
+I'd like a witty, satirical overview that gives the candidate a good Aussie-style roasting, a summary of their key policies and positions, information about their background and political history, and some satirical reasons to vote for them. 
 
-Make sure the JSON is properly formatted and use real information whenever possible. The overviewRoast and whyVoteForThem should be humorous and satirical in authentic Australian political humor style.`;
+Also include 5-10 specific descriptive terms that could help generate a caricature image of the candidate.
+
+Try to structure your response like this (but don't worry about strict JSON formatting):
+
+OVERVIEW ROAST: A witty, satirical overview of the candidate that roasts them in good Aussie fashion.
+
+POLICY SUMMARY: Summary of key policies and political positions.
+
+TRACK RECORD: Information about their background and political history.
+
+WHY VOTE FOR THEM: Satirical reasons to vote for them.
+
+IMAGE SEARCH TERMS: Specific descriptive terms that could help generate a caricature image.
+
+FULL COMMENTARY: The combined full text as a narrative.
+
+Use real information wherever possible. The overview and reasons to vote should be humorous and satirical in authentic Australian political humor style.`;
 
       const response = await fetch(this.baseUrl, {
         method: "POST",
@@ -75,8 +83,7 @@ Make sure the JSON is properly formatted and use real information whenever possi
           temperature: 0.7,
           top_p: 0.9,
           max_tokens: 800,
-          search_recency_filter: "month", // Use recent information 
-          response_format: { type: "json_object" } // Force JSON response
+          search_recency_filter: "month" // Use recent information
         }),
       });
 
@@ -95,21 +102,27 @@ Make sure the JSON is properly formatted and use real information whenever possi
         }>;
       };
       
-      // Parse the structured JSON response
+      // Get the raw content from Perplexity
+      const rawContent = data.choices[0].message.content;
+      
+      // First try to extract structured data from the text format
       try {
-        const parsedResponse = JSON.parse(data.choices[0].message.content) as CandidateStructuredData;
+        const content = rawContent;
         
-        // For backward compatibility, return the full commentary
-        const commentary = parsedResponse.fullCommentary || parsedResponse.overviewRoast;
-
-        console.log(
-          `Successfully generated Perplexity structured data for ${candidate.name}`,
-        );
+        // Extract sections if they exist in the format we requested
+        let overviewRoast = "";
+        const overviewMatch = content.match(/OVERVIEW ROAST:\s*([\s\S]*?)(?=POLICY SUMMARY:|$)/i);
+        if (overviewMatch && overviewMatch[1]) {
+          overviewRoast = overviewMatch[1].trim();
+        }
         
-        return commentary;
-      } catch (parseError) {
-        console.error("Failed to parse JSON response:", parseError);
-        // Return raw content if JSON parsing fails
+        console.log(`Successfully generated Perplexity commentary for ${candidate.name}`);
+        
+        // For compatibility with our current UI, return either full content or just the overview
+        return overviewRoast || content;
+      } catch (error) {
+        console.error("Error processing Perplexity response:", error);
+        // If anything goes wrong, return the raw content
         return data.choices[0].message.content;
       }
     } catch (error) {
