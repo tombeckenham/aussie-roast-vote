@@ -16,7 +16,6 @@ import {
 
 interface CandidateTableProps {
   seatId: number;
-  onViewCandidate: (id: number) => void;
   isGeneratingCommentary?: boolean;
 }
 
@@ -46,7 +45,6 @@ interface CaricatureData {
 
 const CandidateTable = ({
   seatId,
-  onViewCandidate,
   isGeneratingCommentary = false,
 }: CandidateTableProps) => {
   const queryClient = useQueryClient();
@@ -229,18 +227,18 @@ const CandidateTable = ({
               </h4>
               <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
-                  candidate.keyPolicies.slice(0, 3).map((policy, idx) => (
-                    <li key={idx}>{policy}</li>
-                  ))
+                  candidate.keyPolicies
+                    .slice(0, 3)
+                    .map((policy, idx) => <li key={idx}>{policy}</li>)
                 ) : (
                   <>
                     <li>Policy information unavailable</li>
-                    <li>View profile for more details</li>
+                    <li>We're gathering policy details</li>
                   </>
                 )}
               </ul>
             </div>
-            
+
             {/* Commentary */}
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
@@ -293,14 +291,7 @@ const CandidateTable = ({
             </div>
           </CardContent>
 
-          <CardFooter className="flex justify-between">
-            <Button
-              onClick={() => onViewCandidate(candidate.id)}
-              variant="default"
-              size="sm"
-            >
-              View Profile <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
+          <CardFooter className="flex justify-end">
             <Button
               onClick={() => handleGenerateCaricature(candidate.id)}
               variant="outline"

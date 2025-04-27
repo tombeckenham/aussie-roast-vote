@@ -124,10 +124,6 @@ const DivisionPage = () => {
     generateCommentaryMutation.mutate();
   };
 
-  const handleViewCandidate = (id: number) => {
-    setLocation(`/candidate/${id}`);
-  };
-
   const handleBackClick = () => {
     setLocation("/");
   };
@@ -183,20 +179,8 @@ const DivisionPage = () => {
           <h2 className="text-2xl font-bold text-aussie-blue">Candidates</h2>
         </div>
 
-        {generatingCommentary && (
-          <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-lg">
-            <p className="text-sm">
-              <span className="font-bold">Generating commentary:</span>{" "}
-              Aussie-style humorous commentary is being created for all{" "}
-              {seat.name} candidates. This might take 10-20 seconds per
-              candidate.
-            </p>
-          </div>
-        )}
-
         <CandidateTable
           seatId={seat?.id}
-          onViewCandidate={handleViewCandidate}
           isGeneratingCommentary={generatingCommentary}
         />
       </div>
