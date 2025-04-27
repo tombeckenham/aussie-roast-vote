@@ -5,8 +5,11 @@ import {
   Candidate, InsertCandidate, 
   CampaignActivity, InsertCampaignActivity,
   AiRoast, InsertAiRoast,
-  CandidateQA, InsertCandidateQA 
+  CandidateQA, InsertCandidateQA,
+  users, electoralSeats, parties, candidates, campaignActivities, aiRoasts, candidateQA
 } from "@shared/schema";
+import { eq, gte, ilike, or, and, desc } from "drizzle-orm";
+import { db } from "./db";
 
 export interface IStorage {
   // Users (kept from original)
@@ -336,4 +339,177 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  // Users
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  // Electoral Seats
+  async getElectoralSeats(): Promise<ElectoralSeat[]> {
+    return db.select().from(electoralSeats);
+  }
+
+  async getElectoralSeatById(id: number): Promise<ElectoralSeat | undefined> {
+    const [seat] = await db.select().from(electoralSeats).where(eq(electoralSeats.id, id));
+    return seat || undefined;
+  }
+
+  async getElectoralSeatBySlug(slug: string): Promise<ElectoralSeat | undefined> {
+    const [seat] = await db.select().from(electoralSeats).where(eq(electoralSeats.slug, slug));
+    return seat || undefined;
+  }
+
+  async createElectoralSeat(seat: InsertElectoralSeat): Promise<ElectoralSeat> {
+    const [createdSeat] = await db
+      .insert(electoralSeats)
+      .values(seat)
+      .returning();
+    return createdSeat;
+  }
+
+  async searchElectoralSeatsByPostcode(postcode: string): Promise<ElectoralSeat[]> {
+    // In a real implementation, this would use a lookup table or API
+    // For now, just return seats with similar names (postcode implementation would need geocoding)
+    return this.searchElectoralSeatsByName(postcode);
+  }
+
+  async searchElectoralSeatsByName(query: string): Promise<ElectoralSeat[]> {
+    if (!query) return this.getElectoralSeats();
+    
+    return db
+      .select()
+      .from(electoralSeats)
+      .where(
+        or(
+          ilike(electoralSeats.name, `%${query}%`),
+          ilike(electoralSeats.state, `%${query}%`)
+        )
+      );
+  }
+
+  // Parties
+  async getParties(): Promise<Party[]> {
+    return db.select().from(parties);
+  }
+
+  async getPartyById(id: number): Promise<Party | undefined> {
+    const [party] = await db.select().from(parties).where(eq(parties.id, id));
+    return party || undefined;
+  }
+
+  async createParty(party: InsertParty): Promise<Party> {
+    const [createdParty] = await db
+      .insert(parties)
+      .values(party)
+      .returning();
+    return createdParty;
+  }
+
+  // Candidates
+  async getCandidates(): Promise<Candidate[]> {
+    return db.select().from(candidates);
+  }
+
+  async getCandidateById(id: number): Promise<Candidate | undefined> {
+    const [candidate] = await db.select().from(candidates).where(eq(candidates.id, id));
+    return candidate || undefined;
+  }
+
+  async getCandidatesByElectoralSeat(seatId: number): Promise<Candidate[]> {
+    return db
+      .select()
+      .from(candidates)
+      .where(eq(candidates.electoralSeatId, seatId));
+  }
+
+  async createCandidate(candidate: InsertCandidate): Promise<Candidate> {
+    const [createdCandidate] = await db
+      .insert(candidates)
+      .values(candidate)
+      .returning();
+    return createdCandidate;
+  }
+
+  // Campaign Activities
+  async getCampaignActivitiesByCandidate(candidateId: number): Promise<CampaignActivity[]> {
+    return db
+      .select()
+      .from(campaignActivities)
+      .where(eq(campaignActivities.candidateId, candidateId))
+      .orderBy(campaignActivities.dateTime);
+  }
+
+  async getUpcomingCampaignActivities(candidateId: number): Promise<CampaignActivity[]> {
+    const now = new Date();
+    return db
+      .select()
+      .from(campaignActivities)
+      .where(
+        and(
+          eq(campaignActivities.candidateId, candidateId),
+          gte(campaignActivities.dateTime, now)
+        )
+      )
+      .orderBy(campaignActivities.dateTime);
+  }
+
+  async createCampaignActivity(activity: InsertCampaignActivity): Promise<CampaignActivity> {
+    const [createdActivity] = await db
+      .insert(campaignActivities)
+      .values(activity)
+      .returning();
+    return createdActivity;
+  }
+
+  // AI Roasts
+  async getRoastByCandidate(candidateId: number): Promise<AiRoast | undefined> {
+    const [roast] = await db
+      .select()
+      .from(aiRoasts)
+      .where(eq(aiRoasts.candidateId, candidateId));
+    return roast || undefined;
+  }
+
+  async createRoast(roast: InsertAiRoast): Promise<AiRoast> {
+    const [createdRoast] = await db
+      .insert(aiRoasts)
+      .values(roast)
+      .returning();
+    return createdRoast;
+  }
+
+  // Candidate Q&A
+  async getCandidateQA(candidateId: number): Promise<CandidateQA[]> {
+    return db
+      .select()
+      .from(candidateQA)
+      .where(eq(candidateQA.candidateId, candidateId))
+      .orderBy(desc(candidateQA.timestamp));
+  }
+
+  async createCandidateQA(qa: InsertCandidateQA): Promise<CandidateQA> {
+    const [createdQA] = await db
+      .insert(candidateQA)
+      .values(qa)
+      .returning();
+    return createdQA;
+  }
+}
+
+// Switch from MemStorage to DatabaseStorage
+export const storage = new DatabaseStorage();

@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // Users schema (kept from original)
 export const users = pgTable("users", {
@@ -58,10 +59,14 @@ export type Party = typeof parties.$inferSelect;
 // Candidates
 export const candidates = pgTable("candidates", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  surname: text("surname").notNull(), // From AEC data
+  givenName: text("given_name").notNull(), // From AEC data
+  name: text("name").notNull(), // Combined name for display
   partyId: integer("party_id"),
+  partyBallotName: text("party_ballot_name"), // From AEC data
   isIndependent: boolean("is_independent").default(false),
   electoralSeatId: integer("electoral_seat_id").notNull(),
+  ballotPosition: integer("ballot_position"), // From AEC data
   position: text("position"),
   bio: text("bio"),
   imageUrl: text("image_url"),
@@ -132,3 +137,47 @@ export const insertCandidateQASchema = createInsertSchema(candidateQA).omit({
 
 export type InsertCandidateQA = z.infer<typeof insertCandidateQASchema>;
 export type CandidateQA = typeof candidateQA.$inferSelect;
+
+// Relations definitions
+export const electoralSeatsRelations = relations(electoralSeats, ({ many }) => ({
+  candidates: many(candidates),
+}));
+
+export const partiesRelations = relations(parties, ({ many }) => ({
+  candidates: many(candidates),
+}));
+
+export const candidatesRelations = relations(candidates, ({ one, many }) => ({
+  party: one(parties, {
+    fields: [candidates.partyId],
+    references: [parties.id],
+  }),
+  electoralSeat: one(electoralSeats, {
+    fields: [candidates.electoralSeatId],
+    references: [electoralSeats.id],
+  }),
+  campaignActivities: many(campaignActivities),
+  aiRoasts: many(aiRoasts),
+  qaHistory: many(candidateQA),
+}));
+
+export const campaignActivitiesRelations = relations(campaignActivities, ({ one }) => ({
+  candidate: one(candidates, {
+    fields: [campaignActivities.candidateId],
+    references: [candidates.id],
+  }),
+}));
+
+export const aiRoastsRelations = relations(aiRoasts, ({ one }) => ({
+  candidate: one(candidates, {
+    fields: [aiRoasts.candidateId],
+    references: [candidates.id],
+  }),
+}));
+
+export const candidateQARelations = relations(candidateQA, ({ one }) => ({
+  candidate: one(candidates, {
+    fields: [candidateQA.candidateId],
+    references: [candidates.id],
+  }),
+}));
