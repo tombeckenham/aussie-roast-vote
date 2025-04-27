@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "name": "David Smith",
+    "electorate": "Bean",
+    "party": "Australian Labor Party",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/s_smith.jpg",
+    "bio": "David Smith is a Labor MP representing Bean since 2019. Previously a union representative and ACT Senator, he has advocated for public service workers and regional development. Smith holds degrees in economics and law, focusing on education policy and community services."
+  },
+  {
+    "id": 2,
+    "name": "Alicia Payne",
+    "electorate": "Canberra",
+    "party": "Australian Labor Party",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/240796.jpg",
+    "bio": "Alicia Payne has represented Canberra since 2019 for the Labor Party. A former economic adviser and public servant, she focuses on inequality, affordable housing, and climate action. Payne holds a degree in economics and continues to advocate for progressive policies in Parliament."
+  },
+  {
+    "id": 3,
+    "name": "Andrew Leigh",
+    "electorate": "Fenner",
+    "party": "Australian Labor Party",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/183251.jpg",
+    "bio": "Dr. Andrew Leigh has represented Fenner since 2010. A former economics professor at ANU, he's published multiple books on economics and inequality. As Assistant Minister for Competition, Charities and Treasury, Leigh pushes for economic reforms and evidence-based policy."
+  },
+  {
+    "id": 4,
+    "name": "Zali Steggall",
+    "electorate": "Warringah",
+    "party": "Independent",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/265991.jpg",
+    "bio": "Zali Steggall OAM has represented Warringah since 2019 as an Independent. A former Olympic bronze medalist in alpine skiing and barrister, she's focused on climate action, integrity in politics, and community representation. Steggall was awarded the Medal of the Order of Australia for her sporting achievements."
+  },
+  {
+    "id": 5,
+    "name": "Jason Falinski",
+    "electorate": "Mackellar",
+    "party": "Liberal Party of Australia",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/264124.jpg",
+    "bio": "Jason Falinski has represented Mackellar for the Liberal Party since 2016. With a background in business and policy, he's focused on economic reforms, housing affordability, and environmental protection for Sydney's Northern Beaches. Falinski has advocated for small business support and reducing regulatory burdens."
+  },
+  {
+    "id": 6,
+    "name": "Anthony Albanese",
+    "electorate": "Grayndler",
+    "party": "Australian Labor Party",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/R3L.jpg",
+    "bio": "Anthony Albanese has served as Australia's 31st Prime Minister since 2022. Representing Grayndler since 1996, 'Albo' has been a key Labor figure for decades. With working-class roots, he champions infrastructure development, climate action, and social equality, overseeing Australia's post-pandemic recovery."
+  },
+  {
+    "id": 7,
+    "name": "Peter Dutton",
+    "electorate": "Dickson",
+    "party": "Liberal Party of Australia",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/HWO.jpg",
+    "bio": "Peter Dutton has represented Dickson since 2001 and currently serves as Leader of the Opposition. His political career includes ministerial roles in Defence, Home Affairs, and Health. With a background in law enforcement, Dutton focuses on national security, border protection, and economic management."
+  },
+  {
+    "id": 8,
+    "name": "Adam Bandt",
+    "electorate": "Melbourne",
+    "party": "Australian Greens",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/240756.jpg",
+    "bio": "Adam Bandt has represented Melbourne since 2010 and leads the Australian Greens. With a background in industrial law, he champions climate action, affordable housing, and inequality reduction. Bandt has successfully negotiated progressive policies with successive governments, advocating for a transition away from fossil fuels."
+  },
+  {
+    "id": 9,
+    "name": "Tanya Plibersek",
+    "electorate": "Sydney",
+    "party": "Australian Labor Party",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/HZB.jpg",
+    "bio": "Tanya Plibersek has represented Sydney since 1998 and serves as Minister for the Environment and Water. A veteran Labor politician, she has held portfolios including education, women, and foreign affairs. Plibersek is known for her advocacy on gender equality, education reform, and environmental protection."
+  },
+  {
+    "id": 10,
+    "name": "Julian Leeser",
+    "electorate": "Berowra",
+    "party": "Liberal Party of Australia",
+    "photoUrl": "https://www.aph.gov.au/~/media/03%20Senators%20and%20Members/32%20Members/Images/photos/264122.jpg",
+    "bio": "Julian Leeser has represented Berowra since 2016 for the Liberal Party. With expertise in law and policy, he's focused on infrastructure improvements, mental health initiatives, and religious freedom. Leeser has advocated for constitutional recognition of Indigenous Australians while maintaining his conservative values."
+  }
+]

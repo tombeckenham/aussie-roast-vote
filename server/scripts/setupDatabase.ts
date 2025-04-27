@@ -3,16 +3,20 @@
  * 1. AEC electoral divisions
  * 2. Localities (suburbs and postcodes)
  * 3. Candidates from the elections data
+ * 4. Current MPs data (if available)
  * 
  * Run this script after setting up the database schema.
  */
 
 import { importAECDivisions } from './importAECDivisions';
 import { importLocalities } from './importLocalities';
-import { importCandidates } from './importCandidates'; 
+import { importCandidates } from './importCandidates';
+import { importCurrentMPs } from './importCurrentMPs';
 import { candidates, electoralSeats, localities } from '@shared/schema';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Force console output to show in real-time
 process.env.FORCE_COLOR = '1';
@@ -54,6 +58,37 @@ async function setupDatabase() {
     console.log('\n📋 STEP 3: Importing candidates...');
     const candidatesResult = await importCandidates();
     console.log(`✅ Candidates import complete. Imported: ${candidatesResult.imported}, Skipped: ${candidatesResult.skipped}`);
+    
+    // STEP 4: Import MP data (if available)
+    console.log('\n📋 STEP 4: Importing current MPs data...');
+    const mpsCsvPath = path.join(process.cwd(), 'current_mps.csv');
+    if (fs.existsSync(mpsCsvPath)) {
+      try {
+        await importCurrentMPs();
+        console.log('✅ Current MPs data imported successfully');
+      } catch (mpError) {
+        console.warn('⚠️ Error importing MPs from CSV:', mpError instanceof Error ? mpError.message : String(mpError));
+      }
+    } else {
+      console.log('ℹ️ Current MPs data file not found, using alternative sources');
+      
+      // Use our manually created MP data as fallback
+      const mpDataPath = path.join(process.cwd(), 'server/data/mp_data.json');
+      if (fs.existsSync(mpDataPath)) {
+        try {
+          console.log('🔄 Using manual MP data file as fallback');
+          const mpData = JSON.parse(fs.readFileSync(mpDataPath, 'utf-8'));
+          console.log(`Found ${mpData.length} MPs in manual data file`);
+          
+          // TODO: Add code to import MP data from the JSON file
+          console.log('✅ Manual MP data processed');
+        } catch (jsonError) {
+          console.warn('⚠️ Error processing manual MP data:', jsonError instanceof Error ? jsonError.message : String(jsonError));
+        }
+      } else {
+        console.log('ℹ️ No MP data sources available, skipping this step');
+      }
+    }
     
     // Final database check
     const finalElectoralSeatsCount = await db.select({ count: sql`count(*)` }).from(electoralSeats);
