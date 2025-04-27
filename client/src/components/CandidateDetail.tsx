@@ -52,13 +52,13 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
       return response.json();
     },
     onSuccess: (data) => {
-      setCaricatureDescription(data.description);
+      // We don't use the description anymore
       setCaricatureImage(data.imageData);
       toast({
         title: "Caricature generated!",
         description: data.imageData ? 
-          "Check out the humorous caricature image and description below." : 
-          "Check out the humorous caricature description below.",
+          "Check out the humorous caricature image below." : 
+          "Failed to generate image. Please try again.",
       });
       setGeneratingCaricature(false);
     },

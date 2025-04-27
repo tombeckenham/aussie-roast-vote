@@ -264,23 +264,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Candidate not found" });
       }
 
-      // Step 1: Generate the caricature description using xAI's Grok
+      // Generate the caricature image directly using OpenAI
       console.log(`Generating caricature for candidate ${candidate.name}...`);
-      const caricatureDescription = await xaiService.generateCandidateCaricature(candidate);
+      const imageData = await openaiService.generateCaricatureImage(candidate);
 
-      if (!caricatureDescription) {
-        return res.status(500).json({ message: "Failed to generate caricature description" });
-      }
-
-      // Step 2: Generate an image based on the description using OpenAI's GPT vision model
-      console.log(`Generating caricature image for ${candidate.name} using GPT vision model...`);
-      const imageData = await openaiService.generateCaricatureImage(candidate, caricatureDescription);
-
-      // Return both the generated description and the image (if available)
+      // Return only the image data
       res.json({ 
         candidateId, 
         name: candidate.name,
-        description: caricatureDescription,
+        description: "", // Sending empty description since we're not generating it anymore
         imageData: imageData || null
       });
     } catch (error) {
