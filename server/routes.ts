@@ -9,11 +9,17 @@ import {
 import { ensureCandidatesForSeat, generateCandidateData } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
 import { searchSeatsByPostcode, initializePostcodeMapping } from "./services/postcodeService";
-import { findElectoralSeatsByPostcode, initializeAECDataService } from "./services/aecDataService";
+import { 
+  findElectoralSeatsByPostcode, 
+  initializeAECDataService,
+  findDivisionByPostcode,
+  getDivisionDetailsByName
+} from "./services/aecDataService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize postcode mapping service with AEC API data
+  // Initialize postcode mapping service and AEC data service
   await initializePostcodeMapping();
+  initializeAECDataService();
   // API routes for electoral data
   app.get("/api/seats", async (req: Request, res: Response) => {
     try {
@@ -45,8 +51,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 1. Check if it's a postcode (4 digits)
       if (/^\d{4}$/.test(searchQuery)) {
         console.log(`Searching for postcode: ${searchQuery}`);
+        // Use both search methods to ensure complete and correct results
         const postcodeResults = await searchSeatsByPostcode(searchQuery);
         for (const seat of postcodeResults) {
+          uniqueResults.set(seat.id, seat);
+        }
+        
+        // Also try the direct AEC data-based search as a backup/enhancement
+        const aecResults = await findElectoralSeatsByPostcode(searchQuery);
+        for (const seat of aecResults) {
           uniqueResults.set(seat.id, seat);
         }
       }
@@ -72,6 +85,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error searching seats:", error);
       res.status(500).json({ message: "Failed to search electoral seats" });
+    }
+  });
+
+  // Direct AEC data lookup endpoint for divisions by postcode
+  app.get("/api/divisions/postcode/:postcode", async (req: Request, res: Response) => {
+    try {
+      const { postcode } = req.params;
+      
+      if (!postcode || !/^\d{4}$/.test(postcode)) {
+        return res.status(400).json({ message: "Invalid postcode format. Must be 4 digits." });
+      }
+      
+      // First get all division names for this postcode
+      const divisionNames = findDivisionsByPostcode(postcode);
+      
+      if (divisionNames.length === 0) {
+        return res.status(404).json({ message: "No divisions found for this postcode" });
+      }
+      
+      // Get details for each division
+      const divisions = divisionNames.map(name => {
+        const details = getDivisionDetailsByName(name);
+        return {
+          postcode,
+          divisionName: name,
+          details
+        };
+      });
+      
+      res.json(divisions);
+    } catch (error) {
+      console.error("Error fetching division by postcode:", error);
+      res.status(500).json({ message: "Failed to fetch division information" });
     }
   });
 

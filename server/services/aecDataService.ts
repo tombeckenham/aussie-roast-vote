@@ -143,8 +143,11 @@ export function findDivisionsByPostcode(postcode: string): string[] {
   const matches = mappings.filter(mapping => mapping.postcode === postcode);
   
   if (matches.length > 0) {
-    // Extract unique division names
-    const divisions = [...new Set(matches.map(match => match.divisionName))];
+    // Extract unique division names using Array.from instead of spread operator
+    const divisionSet = new Set<string>();
+    matches.forEach(match => divisionSet.add(match.divisionName));
+    const divisions = Array.from(divisionSet);
+    
     console.log(`Found divisions for postcode ${postcode}: ${divisions.join(', ')}`);
     return divisions;
   }
@@ -168,9 +171,14 @@ export function findLocalitiesByPostcode(postcode: string): string[] {
   const matches = mappings.filter(mapping => mapping.postcode === postcode);
   
   if (matches.length > 0) {
-    // Extract unique localities (suburbs)
-    const localities = [...new Set(matches.map(match => match.locality))];
-    return localities.filter(locality => locality && locality.trim() !== '');
+    // Extract unique localities using Array.from instead of spread operator
+    const localitySet = new Set<string>();
+    matches.forEach(match => {
+      if (match.locality && match.locality.trim() !== '') {
+        localitySet.add(match.locality);
+      }
+    });
+    return Array.from(localitySet);
   }
   
   return [];
@@ -318,10 +326,16 @@ export function initializeAECDataService() {
   const mappings = loadPostcodeMappings();
   const divisionDetails = loadDivisionDetails();
   
-  // Count unique postcodes
-  const uniquePostcodes = new Set(mappings.map(m => m.postcode));
+  // Count unique postcodes (using a traditional approach to avoid Set iteration issues)
+  const postcodeCountMap: Record<string, boolean> = {};
+  mappings.forEach(m => {
+    if (m.postcode) {
+      postcodeCountMap[m.postcode] = true;
+    }
+  });
+  const uniquePostcodeCount = Object.keys(postcodeCountMap).length;
   
-  console.log(`AEC Data Service initialized with ${uniquePostcodes.size} postcodes and ${divisionDetails.length} division details`);
+  console.log(`AEC Data Service initialized with ${uniquePostcodeCount} postcodes and ${divisionDetails.length} division details`);
   
   // Log some sample data for debugging
   const samplePostcodes = ['2087', '2000', '2600'];
@@ -333,7 +347,7 @@ export function initializeAECDataService() {
   }
   
   return {
-    postcodeCount: uniquePostcodes.size,
+    postcodeCount: uniquePostcodeCount,
     divisionCount: divisionDetails.length
   };
 }
