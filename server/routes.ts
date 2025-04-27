@@ -58,11 +58,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (divisionNames.length > 0) {
           console.log(`Found divisions for postcode ${searchQuery}: ${divisionNames.join(', ')}`);
           
+          // Prepare queries for division names
+          const divisionQueries = divisionNames.map(name => `'%${name}%'`).join(', ');
+          
           // Find all matching seats in our database for these division names
           const seats = await db.select()
             .from(electoralSeats)
             .where(
-              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `%${name}%`)}])`
+              sql`UPPER(${electoralSeats.name}) LIKE ANY (ARRAY[${sql.raw(divisionQueries)}]::text[])`
             );
           
           console.log(`Found ${seats.length} matching seats in database for postcode ${searchQuery}`);
@@ -101,11 +104,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const divisionNames = Array.from(new Set(matchingLocalities.map(l => l.divisionName)));
           console.log(`Found matching divisions from localities table: ${divisionNames.join(', ')}`);
           
+          // Prepare array of division names for query
+          const divisionQueries = divisionNames.map(name => `'${name}'`).join(', ');
+          
           // Look up matching seats in our database
           const suburbSeats = await db.select()
             .from(electoralSeats)
             .where(
-              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `${name}`)}])`
+              sql`UPPER(${electoralSeats.name}) = ANY (ARRAY[${sql.raw(divisionQueries)}]::text[])`
             );
           
           console.log(`Found ${suburbSeats.length} matching seats in database for locality search "${searchQuery}"`);
@@ -126,11 +132,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const divisionNames = Array.from(new Set(matchingSuburbs.map(s => s.divisionName)));
           console.log(`Found matching divisions from AEC data: ${divisionNames.join(', ')}`);
           
+          // Prepare array of division names for query
+          const divisionQueries = divisionNames.map(name => `'${name}'`).join(', ');
+          
           // Look up matching seats in our database
           const suburbSeats = await db.select()
             .from(electoralSeats)
             .where(
-              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `${name}`)}])`
+              sql`UPPER(${electoralSeats.name}) = ANY (ARRAY[${sql.raw(divisionQueries)}]::text[])`
             );
           
           console.log(`Found ${suburbSeats.length} matching seats in database for AEC suburb search "${searchQuery}"`);
