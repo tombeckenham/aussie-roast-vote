@@ -29,13 +29,20 @@ const DivisionPage = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [generatingRoasts, setGeneratingRoasts] = useState(false);
+  const [generatingCommentary, setGeneratingCommentary] = useState(false);
   
   // Get the seat info
   const { data: seat, isLoading: seatLoading, error: seatError } = useQuery<ElectoralSeat>({
     queryKey: [`/api/seats/${slug}`],
-    enabled: !!slug,
+    enabled: !!slug
   });
+  
+  // Effect to trigger commentary generation when seat data loads
+  useEffect(() => {
+    if (seat?.id) {
+      handleGenerateRoasts();
+    }
+  }, [seat?.id]);
 
   // Generate roasts for all candidates in this seat
   const generateRoastsMutation = useMutation({
@@ -51,16 +58,13 @@ const DivisionPage = () => {
       // Invalidate candidate queries to refresh the table
       queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/candidates`] });
       
-      toast({
-        title: "Roasts generated!",
-        description: `Successfully generated ${Object.keys(data.roasts).length} aussie-style roasts for candidates in ${data.seatName}`,
-      });
+      // No need to show a toast when automatically generating on page load
       setGeneratingRoasts(false);
     },
     onError: (error) => {
       console.error("Error generating roasts:", error);
       toast({
-        title: "Failed to generate roasts",
+        title: "Failed to generate commentaries",
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
@@ -132,30 +136,14 @@ const DivisionPage = () => {
       </div>
       
       <div className="bg-white rounded-xl shadow-lg p-8">
-        <div className="flex justify-between items-center mb-6">
+        <div className="mb-6">
           <h2 className="text-2xl font-bold text-aussie-blue">Candidates</h2>
-          <Button 
-            onClick={handleGenerateRoasts}
-            disabled={generatingRoasts}
-            className="bg-gradient-to-r from-aussie-green to-aussie-blue hover:from-aussie-blue hover:to-aussie-green text-white"
-          >
-            {generatingRoasts ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Generating...
-              </>
-            ) : (
-              <>
-                <Zap className="mr-2 h-4 w-4" /> Roast All Candidates
-              </>
-            )}
-          </Button>
         </div>
         
         {generatingRoasts && (
           <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-lg">
             <p className="text-sm">
-              <span className="font-bold">Generating roasts:</span> Aussie-style roasts are being generated for all {seat.name} candidates. This might take 10-20 seconds per candidate.
+              <span className="font-bold">Generating commentary:</span> Aussie-style humorous commentary is being created for all {seat.name} candidates. This might take 10-20 seconds per candidate.
             </p>
           </div>
         )}
