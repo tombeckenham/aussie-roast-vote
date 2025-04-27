@@ -120,8 +120,10 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
                 ))
               ) : (
                 <div className="p-3 text-center text-gray-500">
-                  {searchTerm.length >= 2
+                  {searchTerm.length >= 2 && debouncedSearchTerm === searchTerm
                     ? `No results found for "${searchTerm}". Try a different search term or postcode.`
+                    : searchTerm.length > 0
+                    ? "Searching..."
                     : "Type at least 2 characters to search"}
                 </div>
               )}
