@@ -11,6 +11,8 @@ interface CandidateDetailProps {
 
 const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
   const [question, setQuestion] = useState("");
+  const [caricatureDescription, setCaricatureDescription] = useState<string | null>(null);
+  const [generatingCaricature, setGeneratingCaricature] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -41,6 +43,30 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
       });
     },
   });
+  
+  const generateCaricatureMutation = useMutation({
+    mutationFn: async () => {
+      setGeneratingCaricature(true);
+      const response = await apiRequest("POST", `/api/candidates/${id}/caricature`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setCaricatureDescription(data.description);
+      toast({
+        title: "Caricature generated!",
+        description: "Check out the humorous caricature description below.",
+      });
+      setGeneratingCaricature(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to generate caricature",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+      setGeneratingCaricature(false);
+    },
+  });
 
   const handleSubmitQuestion = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +86,12 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
       minute: '2-digit',
       hour12: true
     });
+  };
+  
+  // Helper function to split text into paragraphs
+  const splitIntoParagraphs = (text: string | null) => {
+    if (!text) return [];
+    return text.split('\n').filter(p => p.trim() !== '');
   };
 
   if (isLoading) {
@@ -201,6 +233,46 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
             </div>
           </div>
           
+          {/* Caricature Section */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-3">
+              <h5 className="font-heading font-semibold text-xl">Caricature Description</h5>
+              <button 
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center"
+                onClick={() => generateCaricatureMutation.mutate()}
+                disabled={generatingCaricature}
+              >
+                {generatingCaricature ? 
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating...
+                  </> : 
+                  "Generate Caricature"}
+              </button>
+            </div>
+            <div className="bg-light-bg rounded-lg p-4">
+              {caricatureDescription ? (
+                <div className="space-y-3 text-base">
+                  {caricatureDescription.split('\n').map((paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center italic">
+                  {generatingCaricature ? 
+                    "AI is creating a caricature description... This might take a moment." : 
+                    "Click 'Generate Caricature' to create a humorous description of this candidate in Australian style."}
+                </div>
+              )}
+              {caricatureDescription && (
+                <p className="text-xs mt-4 text-center opacity-75">
+                  Generated using x.ai's Grok model - Note: This is a textual description only, not an actual image
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Campaign Trail Section */}
           <div className="mb-8">
             <h5 className="font-heading font-semibold text-xl mb-3">Campaign Trail</h5>
             <div className="relative pl-8 border-l-2 border-aussie-green">

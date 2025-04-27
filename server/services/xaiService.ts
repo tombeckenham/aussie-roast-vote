@@ -60,8 +60,8 @@ export async function generateCandidateCaricature(
     // This will return a text description rather than an image
     // In a production app, you would need to use a different approach
     console.log("Generated caricature description for: " + candidate.name);
-    return response.choices[0].message.content || 
-      "Failed to generate a caricature description. Please try again later.";
+    const content = response.choices[0].message.content;
+    return content ? content : "Failed to generate a caricature description. Please try again later.";
     
     // Note: The actual image generation would require using a different API
     // or configuring Grok differently. For now, we're returning the text description.
@@ -224,7 +224,7 @@ export async function generateCampaignActivities(
       response_format: { type: "json_object" }
     });
     
-    const content = response.choices[0].message.content;
+    const content = response.choices[0].message.content || "[]";
     console.log("Generated campaign activities for: " + candidate.name);
     
     // Parse the JSON response
@@ -238,11 +238,11 @@ export async function generateCampaignActivities(
       }));
     } catch (parseError) {
       console.error("Error parsing activities JSON:", parseError);
-      return null;
+      return [];
     }
   } catch (error) {
     console.error(`Error generating activities for ${candidate.name}:`, error);
-    return null;
+    return [];
   }
 }
 
