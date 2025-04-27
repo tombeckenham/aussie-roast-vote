@@ -61,21 +61,28 @@ const SeatInfo = ({ slug }: SeatInfoProps) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {seat.currentMp && (
-          <div className="bg-light-bg p-4 rounded-lg flex items-start space-x-4">
-            {seat.currentMpPhotoUrl ? (
-              <Avatar className="h-16 w-16 border border-gray-200">
-                <AvatarImage src={seat.currentMpPhotoUrl} alt={seat.currentMp} />
-                <AvatarFallback>{seat.currentMp.substring(0, 2)}</AvatarFallback>
-              </Avatar>
-            ) : (
-              <Avatar className="h-16 w-16 border border-gray-200">
-                <AvatarFallback>{seat.currentMp.substring(0, 2)}</AvatarFallback>
-              </Avatar>
-            )}
-            <div>
-              <h3 className="font-bold text-aussie-blue mb-1">Current MP</h3>
-              <p className="font-medium">{seat.currentMp}</p>
-              {seat.currentParty && <p className="text-sm text-gray-600">{seat.currentParty}</p>}
+          <div className="bg-light-bg p-6 rounded-lg col-span-1 md:col-span-2">
+            <h3 className="font-bold text-aussie-blue mb-3">Current Member of Parliament</h3>
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              {seat.currentMpPhotoUrl ? (
+                <Avatar className="h-32 w-32 border border-gray-200 object-cover">
+                  <AvatarImage src={seat.currentMpPhotoUrl} alt={seat.currentMp} className="object-cover" />
+                  <AvatarFallback>{seat.currentMp.substring(0, 2)}</AvatarFallback>
+                </Avatar>
+              ) : (
+                <Avatar className="h-32 w-32 border border-gray-200">
+                  <AvatarFallback>{seat.currentMp.substring(0, 2)}</AvatarFallback>
+                </Avatar>
+              )}
+              <div className="text-center sm:text-left">
+                <p className="font-medium text-lg">{seat.currentMp}</p>
+                {seat.currentParty && (
+                  <p className="text-gray-600">
+                    {seat.currentParty}
+                  </p>
+                )}
+                <p className="text-sm text-gray-500 mt-2">Member for {seat.name}</p>
+              </div>
             </div>
           </div>
         )}
