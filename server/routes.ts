@@ -1,10 +1,12 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { z } from "zod";
 import {
   insertCandidateQASchema,
-  ElectoralSeat
+  ElectoralSeat,
+  electoralSeats
 } from "@shared/schema";
 import { ensureCandidatesForSeat, generateCandidateData } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
@@ -55,15 +57,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (divisionNames.length > 0) {
           console.log(`Found divisions for postcode ${searchQuery}: ${divisionNames.join(', ')}`);
           
-          // Create an array of SQL ILIKE conditions for each division name
-          const whereConditions = divisionNames.map(name => 
-            sql`UPPER(${electoralSeats.name}) ILIKE ${name.toUpperCase()}`
-          );
-          
-          // Look up matching seats in our database using SQL OR condition
+          // Find all matching seats in our database for these division names
           const seats = await db.select()
             .from(electoralSeats)
-            .where(sql.or(...whereConditions));
+            .where(
+              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `%${name}%`)}])`
+            );
           
           console.log(`Found ${seats.length} matching seats in database for postcode ${searchQuery}`);
           return res.json(seats);
@@ -77,11 +76,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const seats = await db.select()
         .from(electoralSeats)
         .where(
-          sql.or(
-            sql`${electoralSeats.name} ILIKE ${`%${searchQuery}%`}`,
-            sql`${electoralSeats.state} ILIKE ${`%${searchQuery}%`}`,
-            sql`${electoralSeats.description} ILIKE ${`%${searchQuery}%`}`
-          )
+          sql`${electoralSeats.name} ILIKE ${`%${searchQuery}%`} OR 
+              ${electoralSeats.state} ILIKE ${`%${searchQuery}%`} OR 
+              ${electoralSeats.description} ILIKE ${`%${searchQuery}%`}`
         );
       
       // If we still don't have results, try looking up suburbs in AEC data
@@ -95,19 +92,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (matchingSuburbs.length > 0) {
-          // Extract unique division names
-          const divisionNames = [...new Set(matchingSuburbs.map(s => s.divisionName))];
+          // Create array of unique division names
+          const divisionNames = Array.from(new Set(matchingSuburbs.map(s => s.divisionName)));
           console.log(`Found matching divisions from suburbs: ${divisionNames.join(', ')}`);
-          
-          // Create an array of SQL ILIKE conditions for each division name
-          const whereConditions = divisionNames.map(name => 
-            sql`UPPER(${electoralSeats.name}) ILIKE ${name.toUpperCase()}`
-          );
           
           // Look up matching seats in our database
           const suburbSeats = await db.select()
             .from(electoralSeats)
-            .where(sql.or(...whereConditions));
+            .where(
+              sql`${electoralSeats.name} ILIKE ANY (ARRAY[${divisionNames.map(name => `%${name}%`)}])`
+            );
           
           console.log(`Found ${suburbSeats.length} matching seats in database for suburb search "${searchQuery}"`);
           return res.json(suburbSeats);
