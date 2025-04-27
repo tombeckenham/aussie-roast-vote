@@ -86,18 +86,8 @@ export async function generateCandidateRoast(
 
     // Create a prompt for the roast
     const prompt = `
-      Create a humorous Australian-style political roast of ${candidate.name} 
-      from the ${candidate.partyBallotName || "Independent"} party.
-      
-      The roast should:
-      - Be funny and witty in a uniquely Aussie way
-      - Reference stereotypical Australian political behavior
-      - Include some gentle mockery of their party's typical positions
-      - Use Australian slang and expressions
-      - Be cheeky but not mean-spirited or offensive
-      - Be between 150-200 words
-      
-      Make it sound like something an Australian political satirist would write.
+      Create an Aussie style summary of ${candidate.name} 
+      from the ${candidate.partyBallotName || "Independent"} party a candidate for the 2025 Australian Election. It should outline their policies and really take the piss out of them.
     `;
 
     // Make the request to xAI

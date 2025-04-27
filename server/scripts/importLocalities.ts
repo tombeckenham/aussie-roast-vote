@@ -26,7 +26,8 @@ async function importLocalities() {
     console.log('🔄 Starting import of localities into database...');
     
     // Read the AEC postcode data file
-    const filePath = path.join('./server/data/aec_postcodes.txt');
+    const filePath = path.resolve(process.cwd(), 'server/data/aec_postcodes.txt');
+    console.log(`Looking for postcode data at absolute path: ${filePath}`);
     
     if (!fs.existsSync(filePath)) {
       throw new Error(`AEC postcodes data file not found at ${filePath}`);
