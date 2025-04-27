@@ -705,6 +705,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Q&A API
+  // Generate policies for a candidate
+  app.post("/api/candidates/:id/generate-policies", async (req: Request, res: Response) => {
+    try {
+      const candidateId = parseInt(req.params.id, 10);
+
+      if (isNaN(candidateId)) {
+        return res.status(400).json({ message: "Invalid candidate ID" });
+      }
+
+      const candidate = await storage.getCandidateById(candidateId);
+      if (!candidate) {
+        return res.status(404).json({ message: "Candidate not found" });
+      }
+
+      console.log(`Generating policies for candidate ${candidate.name}...`);
+
+      // Generate policies using xAI
+      const policies = await xaiService.generateCandidatePolicies(candidate);
+      
+      if (!policies || policies.length === 0) {
+        return res.status(500).json({ 
+          message: "Failed to generate policies", 
+          candidate: candidate.name 
+        });
+      }
+
+      // Update candidate with generated policies
+      const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
+      
+      if (!updatedCandidate) {
+        return res.status(500).json({ 
+          message: "Failed to update candidate with policies", 
+          candidate: candidate.name 
+        });
+      }
+
+      return res.json({
+        id: candidate.id,
+        name: candidate.name,
+        policies: policies
+      });
+    } catch (error) {
+      console.error("Error generating policies:", error);
+      res.status(500).json({ message: "Failed to generate policies" });
+    }
+  });
+
+  // Generate policies for all candidates in a specific seat
+  app.post("/api/seats/:seatId/generate-policies", async (req: Request, res: Response) => {
+    try {
+      const seatId = parseInt(req.params.seatId, 10);
+
+      if (isNaN(seatId)) {
+        return res.status(400).json({ message: "Invalid seat ID" });
+      }
+
+      const seat = await storage.getElectoralSeatById(seatId);
+      if (!seat) {
+        return res.status(404).json({ message: "Seat not found" });
+      }
+
+      // Get all candidates for this seat
+      const candidates = await storage.getCandidatesByElectoralSeat(seatId);
+
+      if (candidates.length === 0) {
+        return res.status(404).json({ message: "No candidates found for this seat" });
+      }
+
+      console.log(`Generating policies for all ${candidates.length} candidates in ${seat.name}...`);
+
+      const results: Record<number, string[]> = {};
+      let successCount = 0;
+
+      for (const candidate of candidates) {
+        try {
+          console.log(`Generating policies for ${candidate.name}...`);
+          
+          // Skip if candidate already has policies
+          if (candidate.keyPolicies && candidate.keyPolicies.length > 0) {
+            console.log(`${candidate.name} already has policies, skipping...`);
+            results[candidate.id] = candidate.keyPolicies;
+            continue;
+          }
+          
+          // Generate policies using xAI
+          const policies = await xaiService.generateCandidatePolicies(candidate);
+          
+          if (policies && policies.length > 0) {
+            // Update candidate with generated policies
+            const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
+            
+            if (updatedCandidate) {
+              console.log(`Successfully updated policies for ${candidate.name}:`, policies);
+              results[candidate.id] = policies;
+              successCount++;
+            }
+          }
+          
+          // Rate limiting - sleep for a short period between API calls
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (candidateError) {
+          console.error(`Error processing policies for ${candidate.name}:`, candidateError);
+          results[candidate.id] = ["Error generating policies"];
+        }
+      }
+
+      return res.json({
+        seatId,
+        seatName: seat.name,
+        totalCandidates: candidates.length,
+        successfulUpdates: successCount,
+        policies: results
+      });
+    } catch (error) {
+      console.error("Error generating policies for seat:", error);
+      res.status(500).json({ message: "Failed to generate policies" });
+    }
+  });
+
+  // Generate policies for all candidates across all seats
+  app.post("/api/policies/generate-all", async (req: Request, res: Response) => {
+    try {
+      // Import the script
+      const { default: generateCandidatePolicies } = await import("./scripts/generateCandidatePolicies");
+      
+      // Start the generation process (runs asynchronously)
+      const result = await generateCandidatePolicies();
+      
+      return res.json({
+        message: "Policy generation started",
+        initialResults: result
+      });
+    } catch (error) {
+      console.error("Error starting policy generation:", error);
+      res.status(500).json({ message: "Failed to start policy generation" });
+    }
+  });
+
   app.post("/api/candidates/:id/ask", async (req: Request, res: Response) => {
     try {
       const candidateId = parseInt(req.params.id, 10);

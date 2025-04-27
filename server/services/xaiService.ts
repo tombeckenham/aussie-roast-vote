@@ -378,8 +378,9 @@ export async function generateCaricatureImage(
     interface XAIImageResponse {
       data: Array<{ url: string }>;
     }
-
-    function isValidImageResponse(data: any): data is XAIImageResponse {
+    
+    // Define the type guard outside the block
+    const isValidImageResponse = (data: any): data is XAIImageResponse => {
       return (
         data &&
         typeof data === "object" &&

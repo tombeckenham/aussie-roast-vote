@@ -5,8 +5,7 @@
 
 import { db } from "../db";
 import { candidates } from "@shared/schema";
-import { xaiService } from "../services";
-import { createClient } from "@supabase/supabase-js";
+import xaiService from "../services/xaiService";
 import { storage } from "../storage";
 
 /**
@@ -71,8 +70,11 @@ async function generateCandidatePolicies() {
   }
 }
 
-// Run the script if called directly
-if (require.main === module) {
+// Script can be run directly using tsx
+// This is for ES modules compatibility
+const isDirectlyExecuted = import.meta.url === `file://${process.argv[1]}`;
+
+if (isDirectlyExecuted) {
   generateCandidatePolicies()
     .then(() => {
       console.log("Policy generation script completed");
