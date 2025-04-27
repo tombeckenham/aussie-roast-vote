@@ -62,7 +62,7 @@ async function setupDatabase() {
     
     // STEP 4: Import MP data (if available)
     console.log('\n📋 STEP 4: Importing current MPs data...');
-    const mpsCsvPath = path.join(process.cwd(), 'current_mps.csv');
+    const mpsCsvPath = path.join(process.cwd(), 'server/data/current_mps.csv');
     if (fs.existsSync(mpsCsvPath)) {
       try {
         await importCurrentMPs();

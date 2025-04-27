@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface SeatInfoProps {
   slug: string;
@@ -12,6 +13,7 @@ interface ElectoralSeat {
   isMarginial: boolean | null;
   currentMp: string | null;
   currentParty: string | null;
+  currentMpPhotoUrl: string | null;
   keyIssues: string[] | null;
   previousResults: any;
   slug: string;

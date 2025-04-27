@@ -14,6 +14,7 @@ interface ElectoralSeat {
   isMarginial: boolean | null;
   currentMp: string | null;
   currentParty: string | null;
+  currentMpPhotoUrl: string | null;
   keyIssues: string[] | null;
   previousResults: any;
   slug: string;
