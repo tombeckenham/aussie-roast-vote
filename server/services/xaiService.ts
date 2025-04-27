@@ -426,6 +426,66 @@ export async function generateCaricatureImage(
 }
 
 /**
+ * Extract policy information from raw Perplexity data
+ * @param rawData Raw data from Perplexity API
+ * @returns Array of extracted policy statements
+ */
+export function extractPoliciesFromRawData(rawData: string): string[] {
+  try {
+    if (!rawData) return [];
+    
+    console.log("Extracting policies from raw Perplexity data...");
+    
+    // Find the policy section by looking for headings
+    const policySection = rawData.match(
+      /(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i
+    );
+    
+    if (!policySection || !policySection[1]) {
+      console.log("No policy section found in raw data");
+      return [];
+    }
+    
+    // Extract bullet points that start with dash
+    const policyText = policySection[1];
+    let policies = policyText
+      .split('\n')
+      .filter(line => line.trim().startsWith('-'))
+      .map(line => line.trim().replace(/^-\s*/, '').trim()) // Remove the dash and leading whitespace
+      .filter(policy => 
+        policy.length > 10 && 
+        policy.length < 150 && 
+        !policy.includes("Include policy positions") &&
+        !policy.includes("Note flagship policies") &&
+        !policy.includes("signature issues")
+      );
+    
+    // If we didn't find dash-based bullet points, try other formats
+    if (policies.length === 0) {
+      policies = policyText
+        .split(/\n\s*-\s*|\n\*\*|\n•|\n\*/)
+        .filter(policy => 
+          policy.trim().length > 10 && 
+          !policy.includes("Key policy positions") &&
+          !policy.includes("Key Policy Positions") &&
+          !policy.includes("and Political Stances")
+        )
+        .map(policy => policy.trim().replace(/\*\*/g, ""))
+        .filter(policy => policy.length > 10 && policy.length < 150);
+    }
+    
+    // Get top 3 policies
+    policies = policies.slice(0, 3);
+    
+    console.log(`Extracted ${policies.length} policies from raw data`);
+    return policies;
+  } catch (error) {
+    console.error("Error extracting policies from raw data:", error);
+    return [];
+  }
+}
+
+/**
  * Generate short policy sentences for a candidate using xAI
  * @param candidate The candidate to generate policies for
  * @param rawData Optional perplexity raw data to extract policies from
@@ -475,11 +535,32 @@ export async function generateCandidatePolicies(
       ];
     }
 
+    // STEP 1: Try to extract policies from raw Perplexity data first if available
+    if (rawData) {
+      const extractedPolicies = extractPoliciesFromRawData(rawData);
+      if (extractedPolicies.length > 0) {
+        console.log(`Using extracted policies from Perplexity data for ${candidate.name}:`, extractedPolicies);
+        return extractedPolicies;
+      }
+    }
+
+    // STEP 2: If no raw data or extraction failed, use xAI to generate policies
+    console.log(`No policies extracted from raw data, generating with xAI for ${candidate.name}`);
+    
     // Create a prompt for policy generation with short timeout
     const prompt = `
       Generate 3 short policy positions for Australian politician ${candidate.name} 
       from the ${partyName} party. These should be in simple, concise, Australian political style.
       
+      ${rawData ? `Use this background information: ${rawData.substring(0, 1000)}...` : ''}
+      
+      Each policy should:
+      - Be a single sentence (15-20 words maximum)
+      - Start with an action verb (e.g., "Will implement...", "Committed to...", "Supports...")
+      - Be specific rather than generic
+      - Focus on issues important to Australian voters
+      - Align with typical ${partyName} party positions
+
       Return exactly 3 policies in a JSON array:
       ["Policy 1", "Policy 2", "Policy 3"]
     `;
@@ -499,7 +580,7 @@ export async function generateCandidatePolicies(
         const response = await openai.chat.completions.create({
           model: "grok-3-beta", // Using the text model
           messages: [{ role: "user", content: prompt }],
-          max_tokens: 200,
+          max_tokens: 300,
           temperature: 0.6,
           response_format: { type: "json_object" }
         });

@@ -730,6 +730,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Get electoral seat for context
+      const seat = await storage.getElectoralSeatById(candidate.electoralSeatId);
+      if (!seat) {
+        return res.status(404).json({ message: "Electoral seat not found" });
+      }
+
       console.log(`Generating policies for candidate ${candidate.name}...`);
 
       // Set up a timeout to respond to the client
@@ -744,53 +750,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "processing"
           });
         }
-      }, 5000); // 5 second timeout
+      }, 3000); // 3 second timeout for better responsiveness
       
-      // Generate policies using xAI
-      const policies = await xaiService.generateCandidatePolicies(candidate);
+      // Import Perplexity service for getting raw data
+      const { default: perplexityService } = await import("./services/perplexityService");
       
-      // Clear the timeout since we got a response
-      clearTimeout(timeout);
-      
-      if (!policies || policies.length === 0) {
-        console.error(`No policies generated for ${candidate.name}`);
+      try {
+        // First try to get raw data from Perplexity
+        console.log(`Getting raw data from Perplexity for ${candidate.name}...`);
+        const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
+        
+        // Generate policies using both the raw data and xAI
+        console.log(`Generating policies for ${candidate.name} with Perplexity data`);
+        const policies = await xaiService.generateCandidatePolicies(candidate, rawData);
+        
+        // Clear the timeout since we got a response
+        clearTimeout(timeout);
+        
+        if (!policies || policies.length === 0) {
+          console.error(`No policies generated for ${candidate.name}`);
+          
+          if (!hasResponded) {
+            hasResponded = true;
+            return res.status(500).json({ 
+              message: "Failed to generate policies", 
+              candidate: candidate.name 
+            });
+          }
+          return;
+        }
+
+        // Update candidate with generated policies
+        const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
+        
+        if (!updatedCandidate) {
+          console.error(`Failed to update ${candidate.name} with policies in database`);
+          
+          if (!hasResponded) {
+            hasResponded = true;
+            return res.status(500).json({ 
+              message: "Failed to update candidate with policies", 
+              candidate: candidate.name 
+            });
+          }
+          return;
+        }
+
+        console.log(`Successfully updated policies for ${candidate.name}:`, policies);
         
         if (!hasResponded) {
           hasResponded = true;
-          return res.status(500).json({ 
-            message: "Failed to generate policies", 
-            candidate: candidate.name 
+          return res.json({
+            id: candidate.id,
+            name: candidate.name,
+            policies: policies,
+            source: "generated_with_perplexity"
           });
         }
-        return;
-      }
+      } catch (error) {
+        // If Perplexity data fails, fall back to xAI only
+        const perplexityError = error as Error;
+        console.error(`Error with Perplexity, falling back to xAI only: ${perplexityError.message}`);
+        
+        // Generate policies using xAI only
+        const policies = await xaiService.generateCandidatePolicies(candidate);
+        
+        // Clear the timeout since we got a response
+        clearTimeout(timeout);
+        
+        if (!policies || policies.length === 0) {
+          console.error(`No policies generated for ${candidate.name}`);
+          
+          if (!hasResponded) {
+            hasResponded = true;
+            return res.status(500).json({ 
+              message: "Failed to generate policies", 
+              candidate: candidate.name 
+            });
+          }
+          return;
+        }
 
-      // Update candidate with generated policies
-      const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
-      
-      if (!updatedCandidate) {
-        console.error(`Failed to update ${candidate.name} with policies in database`);
+        // Update candidate with generated policies
+        const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
+        
+        if (!updatedCandidate) {
+          console.error(`Failed to update ${candidate.name} with policies in database`);
+          
+          if (!hasResponded) {
+            hasResponded = true;
+            return res.status(500).json({ 
+              message: "Failed to update candidate with policies", 
+              candidate: candidate.name 
+            });
+          }
+          return;
+        }
+
+        console.log(`Successfully updated policies for ${candidate.name} using fallback:`, policies);
         
         if (!hasResponded) {
           hasResponded = true;
-          return res.status(500).json({ 
-            message: "Failed to update candidate with policies", 
-            candidate: candidate.name 
+          return res.json({
+            id: candidate.id,
+            name: candidate.name,
+            policies: policies,
+            source: "generated_fallback"
           });
         }
-        return;
-      }
-
-      console.log(`Successfully updated policies for ${candidate.name}:`, policies);
-      
-      if (!hasResponded) {
-        hasResponded = true;
-        return res.json({
-          id: candidate.id,
-          name: candidate.name,
-          policies: policies,
-          source: "generated"
-        });
       }
     } catch (error) {
       console.error("Error generating policies:", error);
@@ -842,6 +909,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (let i = 0; i < candidates.length; i += batchSize) {
             const batch = candidates.slice(i, i + batchSize);
             
+            // Import Perplexity service for getting raw data
+            const { default: perplexityService } = await import("./services/perplexityService");
+            
             await Promise.all(batch.map(async (candidate) => {
               try {
                 console.log(`Generating policies for ${candidate.name}...`);
@@ -853,8 +923,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return;
                 }
                 
-                // Generate policies using xAI
-                const policies = await xaiService.generateCandidatePolicies(candidate);
+                // First, try to get raw data from Perplexity
+                let policies: string[] = [];
+                try {
+                  console.log(`Getting raw data from Perplexity for ${candidate.name}...`);
+                  const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
+                  
+                  // Generate policies using the raw data and xAI
+                  console.log(`Generating policies for ${candidate.name} with Perplexity data`);
+                  policies = await xaiService.generateCandidatePolicies(candidate, rawData);
+                } catch (error) {
+                  // Fall back to xAI only if Perplexity fails
+                  const perplexityError = error as Error;
+                  console.error(`Perplexity error for ${candidate.name}, falling back to xAI only:`, perplexityError.message);
+                  policies = await xaiService.generateCandidatePolicies(candidate);
+                }
                 
                 if (policies && policies.length > 0) {
                   // Update candidate with generated policies

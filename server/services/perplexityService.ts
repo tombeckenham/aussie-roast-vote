@@ -30,16 +30,42 @@ class PerplexityService {
 
       const prompt = `Research and collect information about ${candidate.name}, ${partyInfo}, who is running for the ${electorateName} electorate in the 2025 Australian federal election.
 
-Please provide:
-1. Key policy positions and political stances
+Please provide in detail:
+1. Key policy positions and political stances - list specific policies with bullet points
+   - Include policy positions on climate change, economy, healthcare, education, immigration
+   - Note flagship policies or signature issues they campaign on
+   - Include any specific promises made for the ${electorateName} electorate
+
 2. Background and political history
-3. Recent news or social media activities 
-4. Any controversies or notable achievements
-5. How they compare to other candidates
+   - Previous political roles or positions
+   - Educational and professional background
+   - Connection to the ${electorateName} electorate
+
+3. Recent news (last 7 days)
+   - Recent campaign announcements or statements
+   - Media appearances or interviews
+   - Controversies or notable events in the past week
+
+4. Upcoming campaign events
+   - Scheduled rallies, speeches, or town halls in the next 7 days
+   - Planned debates or public appearances
+   - Digital events or online forums
+
+5. Controversies or notable achievements
+   - Any scandals or criticisms from opponents
+   - Major accomplishments or recognition
+   - Funding announcements or electorate-specific projects
+
+6. How they compare to other candidates in ${electorateName}
+   - Policy differences
+   - Polling information if available
+   - Areas where they differentiate themselves
 
 Also, if you can find it, please include any official photo URL for the candidate. If you find an image, label it with "IMAGE_URL: " followed by the URL.
 
-Only provide factual information - don't create any commentary, humor or opinions. I'll use this raw data for my own analysis.`;
+FORMAT REQUIREMENT: For the policy section, use bullet points with a dash (-) at the start of each line. Make sure each policy is clearly identified and separated.
+
+Only provide factual information - don't create any commentary, humor or opinions. I'll use this raw data for my own analysis. Focus especially on detailed policy information wherever possible.`;
 
       const response = await fetch(this.baseUrl, {
         method: "POST",
@@ -62,8 +88,9 @@ Only provide factual information - don't create any commentary, humor or opinion
           ],
           temperature: 0.3, // Low temperature for more factual responses
           top_p: 0.9,
-          max_tokens: 1000,
-          search_recency_filter: "month", // Use recent information
+          max_tokens: 2000, // Increased token limit for more detailed information
+          search_recency_filter: "week", // More recent information
+          search_domain_filter: ["abc.net.au", "sbs.com.au", "theage.com.au", "smh.com.au", "news.com.au", "theaustralian.com.au", "theguardian.com/au"], // Australian news sources
         }),
       });
 

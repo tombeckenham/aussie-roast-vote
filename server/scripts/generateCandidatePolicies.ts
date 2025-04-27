@@ -33,8 +33,32 @@ async function generateCandidatePolicies() {
           continue;
         }
         
-        // Generate policies using xAI
-        const policies = await xaiService.generateCandidatePolicies(candidate);
+        // Get electoral seat for context
+        const seat = await storage.getElectoralSeatById(candidate.electoralSeatId);
+        if (!seat) {
+          console.error(`Electoral seat not found for candidate ${candidate.id}`);
+          continue;
+        }
+        
+        // First try to get Perplexity data
+        let policies: string[] = [];
+        try {
+          // Import perplexity service
+          const perplexityService = (await import("../services/perplexityService")).default;
+          
+          // Get raw data from Perplexity
+          console.log(`Getting raw data from Perplexity for ${candidate.name}...`);
+          const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
+          
+          // Generate policies using the combined approach
+          console.log(`Generating policies with Perplexity data for ${candidate.name}`);
+          policies = await xaiService.generateCandidatePolicies(candidate, rawData);
+        } catch (error) {
+          console.error(`Error with Perplexity for ${candidate.name}, falling back to xAI only:`, (error as Error).message);
+          
+          // Fallback to just xAI
+          policies = await xaiService.generateCandidatePolicies(candidate);
+        }
         
         if (policies && policies.length > 0) {
           // Update candidate with generated policies
