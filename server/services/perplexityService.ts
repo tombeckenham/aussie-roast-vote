@@ -90,7 +90,7 @@ Only provide factual information - don't create any commentary, humor or opinion
           top_p: 0.9,
           max_tokens: 2000, // Increased token limit for more detailed information
           search_recency_filter: "week", // More recent information
-          search_domain_filter: ["abc.net.au", "sbs.com.au", "theage.com.au", "smh.com.au", "news.com.au", "theaustralian.com.au", "theguardian.com/au"], // Australian news sources
+          search_domain_filter: ["abc.net.au", "sbs.com.au", "theage.com.au", "smh.com.au", "news.com.au", "theaustralian.com.au", "theguardian.com"], // Australian news sources
         }),
       });
 
