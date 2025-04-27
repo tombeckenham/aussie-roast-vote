@@ -23,6 +23,11 @@ async function importCandidates() {
   try {
     console.log('Starting to import candidates from CSV...');
     
+    // Track import metrics
+    let imported = 0;
+    let skipped = 0;
+    const errors = [];
+    
     // Read and parse the CSV file
     const filePath = path.resolve('house-candidates.csv');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -148,27 +153,54 @@ async function importCandidates() {
             .returning();
             
           console.log(`Created candidate: ${fullName} (${record.partyBallotName}) for ${record.division}, ${record.state}`);
+          imported++;
         } else {
           console.log(`Skipping duplicate candidate: ${fullName} in ${record.division}`);
+          skipped++;
         }
       } catch (error) {
         console.error(`Error processing record:`, record, error);
+        errors.push(`${record.division} - ${record.surname}: ${error.message}`);
       }
     }
     
-    console.log('Import completed successfully.');
+    // Display summary
+    console.log('\n📊 Import summary:');
+    console.log(`- Total candidates in CSV: ${records.length}`);
+    console.log(`- Already in database: ${skipped}`);
+    console.log(`- Successfully imported: ${imported}`);
+    console.log(`- Errors: ${errors.length}`);
+    
+    if (errors.length > 0) {
+      console.log('\n❌ Error details:');
+      errors.forEach(err => console.log(`- ${err}`));
+    }
+    
+    console.log('\n✅ Import completed successfully');
+    
+    return {
+      totalCandidates: records.length,
+      skipped,
+      imported,
+      errors
+    };
   } catch (error) {
-    console.error('Error importing candidates:', error);
+    console.error('❌ Error importing candidates:', error);
+    throw error;
   }
 }
 
-// Execute the import function
-importCandidates()
-  .then(() => {
-    console.log('Candidate import script finished.');
-    process.exit(0);
-  })
-  .catch(err => {
-    console.error('Script failed:', err);
-    process.exit(1);
-  });
+// Execute the import function if this script is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  importCandidates()
+    .then(() => {
+      console.log('Candidate import script finished.');
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error('Script failed:', err);
+      process.exit(1);
+    });
+}
+
+export { importCandidates };
