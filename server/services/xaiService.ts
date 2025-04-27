@@ -373,8 +373,21 @@ export async function generateCaricatureImage(
     const data = await response.json();
     console.log(`xAI image generation response status: ${response.status}`);
     
+    // Type guard to check if response data has the expected structure
+    interface XAIImageResponse {
+      data: Array<{url: string}>;
+    }
+
+    function isValidImageResponse(data: any): data is XAIImageResponse {
+      return data && 
+        typeof data === 'object' && 
+        Array.isArray(data.data) && 
+        data.data.length > 0 && 
+        typeof data.data[0].url === 'string';
+    }
+
     // Get the image URL from the response
-    if (data.data && data.data.length > 0 && data.data[0].url) {
+    if (isValidImageResponse(data)) {
       console.log(`Successfully generated caricature image for ${candidate.name} using xAI`);
       
       // Fetch the image from the URL and convert to base64
