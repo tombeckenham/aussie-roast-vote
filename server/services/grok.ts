@@ -56,7 +56,8 @@ export async function generateCandidateRoast(
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "";
+    const result = JSON.parse(content);
 
     return {
       content: result.shortRoast,
@@ -112,7 +113,7 @@ export async function answerCandidateQuestion(
       ]
     });
 
-    return response.choices[0].message.content;
+    return response.choices[0].message.content || "";
   } catch (error) {
     console.error("Error answering question:", error);
     return `Sorry, mate! Our AI seems to be on smoko. We couldn't get an answer about ${candidateName} just yet. Try again in a bit!`;
@@ -171,7 +172,8 @@ export async function generateCampaignActivities(
       response_format: { type: "json_object" }
     });
 
-    const responseData = JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "";
+    const responseData = JSON.parse(content);
     // Make sure we're accessing the activities array if it exists
     const activities = responseData.activities || responseData;
     
