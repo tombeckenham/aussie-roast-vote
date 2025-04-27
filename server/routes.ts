@@ -122,6 +122,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get roasts for candidates in a specific electoral seat
+  app.get("/api/seats/:seatId/roasts", async (req: Request, res: Response) => {
+    try {
+      const seatId = parseInt(req.params.seatId, 10);
+      
+      if (isNaN(seatId)) {
+        return res.status(400).json({ message: "Invalid seat ID" });
+      }
+      
+      // Get all candidates for the seat
+      const candidates = await storage.getCandidatesByElectoralSeat(seatId);
+      
+      if (!candidates || candidates.length === 0) {
+        return res.json({});
+      }
+      
+      // Create a map of candidate ID to roast content
+      const roastMap: Record<number, string> = {};
+      
+      for (const candidate of candidates) {
+        const roast = await storage.getRoastByCandidate(candidate.id);
+        if (roast) {
+          roastMap[candidate.id] = roast.content;
+        }
+      }
+      
+      res.json(roastMap);
+    } catch (error) {
+      console.error("Error fetching roasts for seat:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Candidates API
   app.get(
     "/api/seats/:seatId/candidates",

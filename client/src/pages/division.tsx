@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import SeatInfo from "@/components/SeatInfo";
-import CandidateList from "@/components/CandidateList";
+import CandidateTable from "@/components/CandidateTable";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -93,7 +93,7 @@ const DivisionPage = () => {
       
       <div className="bg-white rounded-xl shadow-lg p-8">
         <h2 className="text-2xl font-bold text-aussie-blue mb-6">Candidates</h2>
-        <CandidateList seatId={seat?.id} onViewCandidate={handleViewCandidate} />
+        <CandidateTable seatId={seat?.id} onViewCandidate={handleViewCandidate} />
       </div>
     </div>
   );
