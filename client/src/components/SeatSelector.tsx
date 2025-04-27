@@ -13,11 +13,8 @@ interface ElectoralSeat {
   state: string;
 }
 
-type SearchMode = 'name' | 'postcode';
-
 const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchMode, setSearchMode] = useState<SearchMode>('name');
 
   // Query electoral seats
   const { data: seats, isLoading } = useQuery<ElectoralSeat[]>({
@@ -36,20 +33,13 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
     try {
       setIsSearching(true);
       
-      // Build the search URL based on search mode
-      let searchUrl = '';
-      if (searchMode === 'postcode') {
-        // Australian postcodes are 4 digits
-        const isPostcode = /^\d{4}$/.test(searchTerm);
-        searchUrl = `/api/seats/search?postcode=${encodeURIComponent(searchTerm)}`;
-        
-        // If it doesn't look like a postcode, use the query parameter instead
-        if (!isPostcode) {
-          searchUrl = `/api/seats/search?query=${encodeURIComponent(searchTerm)}`;
-        }
-      } else {
-        searchUrl = `/api/seats/search?query=${encodeURIComponent(searchTerm)}`;
-      }
+      // Determine if the search term is a postcode (4 digits) or a name
+      const isPostcode = /^\d{4}$/.test(searchTerm);
+      
+      // Build the search URL based on the search term type
+      const searchUrl = isPostcode
+        ? `/api/seats/search?postcode=${encodeURIComponent(searchTerm)}`
+        : `/api/seats/search?query=${encodeURIComponent(searchTerm)}`;
       
       // Directly fetch search results
       const res = await fetch(searchUrl);
@@ -92,30 +82,16 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
       <div className="md:flex md:justify-between md:items-start mb-8">
         <div className="md:w-1/2 mb-6 md:mb-0 md:pr-8">
           <div className="relative">
-            <div className="flex space-x-2 mb-2">
-              <button
-                className={`px-3 py-1 rounded font-semibold ${searchMode === 'name' ? 'bg-aussie-green text-white' : 'bg-gray-200'}`}
-                onClick={() => setSearchMode('name')}
-              >
-                Search by Name
-              </button>
-              <button
-                className={`px-3 py-1 rounded font-semibold ${searchMode === 'postcode' ? 'bg-aussie-green text-white' : 'bg-gray-200'}`}
-                onClick={() => setSearchMode('postcode')}
-              >
-                Search by Postcode
-              </button>
-            </div>
             <input
               type="text"
-              placeholder={searchMode === 'postcode' ? "Enter your 4-digit postcode (e.g. 2000)" : "Search by seat name or state..."}
+              placeholder="Enter a seat name or postcode (e.g. Sydney or 2000)"
               className="w-full border-2 border-aussie-green rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-aussie-green"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
             />
             <button
-              className="absolute right-2 top-[46px] transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg disabled:bg-gray-400"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-aussie-green text-white px-4 py-1 rounded-lg disabled:bg-gray-400"
               onClick={handleSearch}
               disabled={isSearching}
             >
@@ -171,11 +147,7 @@ const SeatSelector = ({ onSeatSelect }: SeatSelectorProps) => {
                   ))
                 ) : (
                   <div className="p-3 text-center text-gray-500">
-                    {searchMode === 'postcode' ? (
-                      <>No electorates found for postcode "{searchTerm}". Please check the postcode and try again.</>
-                    ) : (
-                      <>No results found for "{searchTerm}". Try a different search term.</>
-                    )}
+                    No results found for "{searchTerm}". Try a different search term or postcode.
                   </div>
                 )}
               </div>
