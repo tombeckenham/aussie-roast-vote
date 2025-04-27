@@ -10,8 +10,8 @@ import { answerCandidateQuestion } from "./services/grok";
 import { searchSeatsByPostcode, initializePostcodeMapping } from "./services/postcodeService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize postcode mapping service
-  initializePostcodeMapping();
+  // Initialize postcode mapping service with AEC API data
+  await initializePostcodeMapping();
   // API routes for electoral data
   app.get("/api/seats", async (req: Request, res: Response) => {
     try {
