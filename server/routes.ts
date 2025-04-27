@@ -123,122 +123,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get commentaries for candidates in a specific electoral seat
-  app.get("/api/seats/:seatId/commentaries", async (req: Request, res: Response) => {
-    try {
-      const seatId = parseInt(req.params.seatId, 10);
-      
-      if (isNaN(seatId)) {
-        return res.status(400).json({ message: "Invalid seat ID" });
-      }
-      
-      // Get all candidates for the seat
-      const candidates = await storage.getCandidatesByElectoralSeat(seatId);
-      
-      if (!candidates || candidates.length === 0) {
-        return res.json({});
-      }
-      
-      // Create a map of candidate ID to commentary content
-      const commentaryMap: Record<number, string> = {};
-      
-      for (const candidate of candidates) {
-        const commentary = await storage.getRoastByCandidate(candidate.id);
-        if (commentary) {
-          commentaryMap[candidate.id] = commentary.content;
+  app.get(
+    "/api/seats/:seatId/commentaries",
+    async (req: Request, res: Response) => {
+      try {
+        const seatId = parseInt(req.params.seatId, 10);
+
+        if (isNaN(seatId)) {
+          return res.status(400).json({ message: "Invalid seat ID" });
         }
-      }
-      
-      res.json(commentaryMap);
-    } catch (error) {
-      console.error("Error fetching commentaries for seat:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Generate commentaries for all candidates in a seat at once
-  app.post("/api/seats/:seatId/generate-commentaries", async (req: Request, res: Response) => {
-    try {
-      const seatId = parseInt(req.params.seatId, 10);
-      
-      if (isNaN(seatId)) {
-        return res.status(400).json({ message: "Invalid seat ID" });
-      }
-      
-      const seat = await storage.getElectoralSeatById(seatId);
-      if (!seat) {
-        return res.status(404).json({ message: "Seat not found" });
-      }
-      
-      // Get all candidates for this seat
-      const candidates = await storage.getCandidatesByElectoralSeat(seatId);
-      
-      if (candidates.length === 0) {
-        return res.status(404).json({ message: "No candidates found for this seat" });
-      }
-      
-      console.log(`Generating commentaries for all ${candidates.length} candidates in ${seat.name}...`);
-      
-      // Import the services
-      const { default: xaiService } = await import('./services/xaiService');
-      const { default: perplexityService } = await import('./services/perplexityService');
-      
-      // Generate commentaries for each candidate
-      const commentaryResults: Record<number, string> = {};
-      
-      for (const candidate of candidates) {
-        console.log(`Generating commentary for ${candidate.name}...`);
-        
-        // Check if commentary already exists
-        let existingCommentary = await storage.getRoastByCandidate(candidate.id);
-        
-        if (!existingCommentary) {
-          try {
-            // Try to use Perplexity first for more recent data
-            let fullContent;
-            try {
-              // Use Perplexity service for up-to-date information
-              fullContent = await perplexityService.generateCandidateCommentary(candidate, seat.name);
-              console.log(`Generated Perplexity commentary for: ${candidate.name}`);
-            } catch (error) {
-              const perplexityError = error as Error;
-              console.error(`Perplexity error, falling back to xAI: ${perplexityError.message}`);
-              // Fall back to xAI if Perplexity fails
-              fullContent = await xaiService.generateCandidateRoast(candidate);
-              console.log(`Generated xAI commentary for: ${candidate.name}`);
-            }
-            
-            if (fullContent) {
-              // Create a shortened version for the table
-              const content = fullContent.split('\n')[0] || fullContent.substring(0, 100);
-              
-              // Save to database
-              const commentary = await storage.createRoast({
-                candidateId: candidate.id,
-                content,
-                fullContent,
-              });
-              
-              commentaryResults[candidate.id] = content;
-            }
-          } catch (error) {
-            console.error(`Failed to generate commentary for ${candidate.name}:`, error);
-            commentaryResults[candidate.id] = "Commentary generation in progress...";
+
+        // Get all candidates for the seat
+        const candidates = await storage.getCandidatesByElectoralSeat(seatId);
+
+        if (!candidates || candidates.length === 0) {
+          return res.json({});
+        }
+
+        // Create a map of candidate ID to commentary content
+        const commentaryMap: Record<number, string> = {};
+
+        for (const candidate of candidates) {
+          const commentary = await storage.getRoastByCandidate(candidate.id);
+          if (commentary) {
+            commentaryMap[candidate.id] = commentary.content;
           }
-        } else {
-          commentaryResults[candidate.id] = existingCommentary.content;
         }
+
+        res.json(commentaryMap);
+      } catch (error) {
+        console.error("Error fetching commentaries for seat:", error);
+        res.status(500).json({ message: "Server error" });
       }
-      
-      res.json({
-        seatId,
-        seatName: seat.name,
-        commentaries: commentaryResults
-      });
-    } catch (error) {
-      console.error("Error generating commentaries:", error);
-      res.status(500).json({ message: "Failed to generate commentaries" });
-    }
-  });
+    },
+  );
+
+  // Generate commentaries for all candidates in a seat at once
+  app.post(
+    "/api/seats/:seatId/generate-commentaries",
+    async (req: Request, res: Response) => {
+      try {
+        const seatId = parseInt(req.params.seatId, 10);
+
+        if (isNaN(seatId)) {
+          return res.status(400).json({ message: "Invalid seat ID" });
+        }
+
+        const seat = await storage.getElectoralSeatById(seatId);
+        if (!seat) {
+          return res.status(404).json({ message: "Seat not found" });
+        }
+
+        // Get all candidates for this seat
+        const candidates = await storage.getCandidatesByElectoralSeat(seatId);
+
+        if (candidates.length === 0) {
+          return res
+            .status(404)
+            .json({ message: "No candidates found for this seat" });
+        }
+
+        console.log(
+          `Generating commentaries for all ${candidates.length} candidates in ${seat.name}...`,
+        );
+
+        // Import the services
+        const { default: xaiService } = await import("./services/xaiService");
+        const { default: perplexityService } = await import(
+          "./services/perplexityService"
+        );
+
+        // Generate commentaries for each candidate
+        const commentaryResults: Record<number, string> = {};
+
+        for (const candidate of candidates) {
+          console.log(`Generating commentary for ${candidate.name}...`);
+
+          // Check if commentary already exists
+          let existingCommentary = ""; // await storage.getRoastByCandidate(candidate.id);
+
+          if (!existingCommentary) {
+            try {
+              // Try to use Perplexity first for more recent data
+              let fullContent;
+              try {
+                // Use Perplexity service for up-to-date information
+                fullContent =
+                  await perplexityService.generateCandidateCommentary(
+                    candidate,
+                    seat.name,
+                  );
+                console.log(
+                  `Generated Perplexity commentary for: ${candidate.name}`,
+                );
+              } catch (error) {
+                const perplexityError = error as Error;
+                console.error(
+                  `Perplexity error, falling back to xAI: ${perplexityError.message}`,
+                );
+                // Fall back to xAI if Perplexity fails
+                fullContent =
+                  await xaiService.generateCandidateRoast(candidate);
+                console.log(`Generated xAI commentary for: ${candidate.name}`);
+              }
+
+              if (fullContent) {
+                // Create a more complete version for the table (more of the first paragraph)
+                const content = fullContent.includes('\n') 
+                  ? fullContent.split('\n')[0] 
+                  : fullContent.substring(0, 300);
+                
+                // Check if we already have a roast for this candidate, to replace it
+                const existingRoast = await storage.getRoastByCandidate(candidate.id);
+                
+                if (existingRoast) {
+                  console.log(`Replacing existing commentary for ${candidate.name} (id: ${existingRoast.id})`);
+                }
+
+                // Save to database
+                const commentary = await storage.createRoast({
+                  candidateId: candidate.id,
+                  content,
+                  fullContent,
+                });
+
+                commentaryResults[candidate.id] = content;
+              }
+            } catch (error) {
+              console.error(
+                `Failed to generate commentary for ${candidate.name}:`,
+                error,
+              );
+              commentaryResults[candidate.id] =
+                "Commentary generation in progress...";
+            }
+          } else {
+            commentaryResults[candidate.id] = existingCommentary.content;
+          }
+        }
+
+        res.json({
+          seatId,
+          seatName: seat.name,
+          commentaries: commentaryResults,
+        });
+      } catch (error) {
+        console.error("Error generating commentaries:", error);
+        res.status(500).json({ message: "Failed to generate commentaries" });
+      }
+    },
+  );
 
   // Candidates API
   app.get(
@@ -336,35 +370,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate caricature for candidate
-  app.post("/api/candidates/:id/caricature", async (req: Request, res: Response) => {
-    try {
-      const candidateId = parseInt(req.params.id, 10);
+  app.post(
+    "/api/candidates/:id/caricature",
+    async (req: Request, res: Response) => {
+      try {
+        const candidateId = parseInt(req.params.id, 10);
 
-      if (isNaN(candidateId)) {
-        return res.status(400).json({ message: "Invalid candidate ID" });
+        if (isNaN(candidateId)) {
+          return res.status(400).json({ message: "Invalid candidate ID" });
+        }
+
+        const candidate = await storage.getCandidateById(candidateId);
+        if (!candidate) {
+          return res.status(404).json({ message: "Candidate not found" });
+        }
+
+        // Generate the caricature image directly using OpenAI
+        console.log(`Generating caricature for candidate ${candidate.name}...`);
+        const imageData =
+          await openaiService.generateCaricatureImage(candidate);
+
+        // Return only the image data
+        res.json({
+          candidateId,
+          name: candidate.name,
+          description: "", // Sending empty description since we're not generating it anymore
+          imageData: imageData || null,
+        });
+      } catch (error) {
+        console.error("Error generating caricature:", error);
+        res.status(500).json({ message: "Failed to generate caricature" });
       }
-
-      const candidate = await storage.getCandidateById(candidateId);
-      if (!candidate) {
-        return res.status(404).json({ message: "Candidate not found" });
-      }
-
-      // Generate the caricature image directly using OpenAI
-      console.log(`Generating caricature for candidate ${candidate.name}...`);
-      const imageData = await openaiService.generateCaricatureImage(candidate);
-
-      // Return only the image data
-      res.json({ 
-        candidateId, 
-        name: candidate.name,
-        description: "", // Sending empty description since we're not generating it anymore
-        imageData: imageData || null
-      });
-    } catch (error) {
-      console.error("Error generating caricature:", error);
-      res.status(500).json({ message: "Failed to generate caricature" });
-    }
-  });
+    },
+  );
 
   // Debug endpoint to check all ai_roasts
   app.get("/api/debug/roasts", async (req: Request, res: Response) => {

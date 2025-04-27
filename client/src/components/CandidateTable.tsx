@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronRight, User, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 
 interface CandidateTableProps {
   seatId: number;
@@ -114,99 +121,107 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
     return 0;
   });
 
+  // Force a refresh of the commentaries
+  useEffect(() => {
+    // Setup a polling interval to refresh commentaries when the component first mounts
+    const interval = setInterval(() => {
+      if (isGeneratingCommentary) {
+        refetchCommentaries();
+        console.log("Polling for updated commentaries...");
+      }
+    }, 3000);
+    
+    // Clean up the interval on component unmount
+    return () => clearInterval(interval);
+  }, [isGeneratingCommentary, refetchCommentaries]);
+
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Candidate Name</TableHead>
-            <TableHead>Party/Independence</TableHead>
-            <TableHead>Key Policy Focus</TableHead>
-            <TableHead>Commentary</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedCandidates.map((candidate) => (
-            <TableRow key={candidate.id} className={candidate.isIncumbent ? "bg-aussie-gold/10" : ""}>
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={candidate.imageUrl || ""} alt={candidate.name} />
-                    <AvatarFallback>
-                      <User size={16} />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    {candidate.name}
-                    {candidate.isIncumbent && (
-                      <Badge className="ml-2 bg-aussie-gold text-dark-text">Incumbent</Badge>
-                    )}
-                    {candidate.position && (
-                      <div className="text-xs text-gray-500">{candidate.position}</div>
-                    )}
-                  </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {sortedCandidates.map((candidate) => (
+        <Card key={candidate.id} className={candidate.isIncumbent ? "border-aussie-gold border-2" : ""}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={candidate.imageUrl || ""} alt={candidate.name} />
+                  <AvatarFallback>
+                    <User size={20} />
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle className="text-lg">{candidate.name}</CardTitle>
+                  <CardDescription>
+                    {candidate.partyBallotName || (candidate.isIndependent ? "Independent" : "-")}
+                    {candidate.position && <span> · {candidate.position}</span>}
+                  </CardDescription>
                 </div>
-              </TableCell>
-              <TableCell>
-                {candidate.partyBallotName || (candidate.isIndependent ? "Independent" : "-")}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
-                    candidate.keyPolicies.slice(0, 3).map((policy, index) => (
-                      <Badge key={index} variant="outline" className="bg-gray-100">
-                        {policy}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-gray-500 text-sm">No policies listed</span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                {isGeneratingCommentary && !commentaries[candidate.id] ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-4/5" />
-                    <div className="flex items-center space-x-2 text-xs text-blue-600">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Generating commentary...</span>
-                    </div>
-                  </div>
-                ) : commentaries[candidate.id] ? (
-                  <div className="text-sm max-w-md">
-                    {commentaries[candidate.id]}
-                  </div>
+              </div>
+              {candidate.isIncumbent && (
+                <Badge className="bg-aussie-gold text-dark-text">Incumbent</Badge>
+              )}
+            </div>
+          </CardHeader>
+          
+          <CardContent>
+            {/* Key Policies */}
+            <div className="mb-4">
+              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">Key Policy Focus</h4>
+              <div className="flex flex-wrap gap-1">
+                {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
+                  candidate.keyPolicies.slice(0, 3).map((policy, index) => (
+                    <Badge key={index} variant="outline" className="bg-gray-100">
+                      {policy}
+                    </Badge>
+                  ))
                 ) : (
-                  <span className="text-gray-500 text-sm">Commentary will be generated automatically</span>
+                  <span className="text-gray-500 text-sm">No policies listed</span>
                 )}
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={() => onViewCandidate(candidate.id)}
-                    variant="default"
-                    size="sm"
-                  >
-                    View <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
-                  <Button
-                    onClick={() => handleGenerateCaricature(candidate.id)}
-                    variant="outline"
-                    size="sm"
-                    disabled={generateCaricatureMutation.isPending && generatingCaricature === candidate.id}
-                  >
-                    {generateCaricatureMutation.isPending && generatingCaricature === candidate.id
-                      ? "Generating..."
-                      : "Generate Caricature"}
-                  </Button>
+              </div>
+            </div>
+            
+            {/* Commentary */}
+            <div className="mb-4">
+              <h4 className="text-sm font-semibold mb-1 text-muted-foreground">Aussie-Style Commentary</h4>
+              {isGeneratingCommentary && !commentaries[candidate.id] ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <div className="flex items-center space-x-2 text-xs text-blue-600">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Generating commentary...</span>
+                  </div>
                 </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              ) : commentaries[candidate.id] ? (
+                <div className="text-sm py-2 border-l-2 pl-3 border-l-aussie-green/40 italic">
+                  {commentaries[candidate.id]}
+                </div>
+              ) : (
+                <span className="text-gray-500 text-sm">Commentary will be generated automatically</span>
+              )}
+            </div>
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button
+              onClick={() => onViewCandidate(candidate.id)}
+              variant="default"
+              size="sm"
+            >
+              View Profile <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => handleGenerateCaricature(candidate.id)}
+              variant="outline"
+              size="sm"
+              disabled={generateCaricatureMutation.isPending && generatingCaricature === candidate.id}
+            >
+              {generateCaricatureMutation.isPending && generatingCaricature === candidate.id
+                ? "Generating..."
+                : "Generate Caricature"}
+            </Button>
+          </CardFooter>
+        </Card>
+      ))}
     </div>
   );
 };
