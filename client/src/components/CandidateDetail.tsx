@@ -11,7 +11,6 @@ interface CandidateDetailProps {
 
 const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
   const [question, setQuestion] = useState("");
-  const [caricatureDescription, setCaricatureDescription] = useState<string | null>(null);
   const [caricatureImage, setCaricatureImage] = useState<string | null>(null);
   const [generatingCaricature, setGeneratingCaricature] = useState(false);
   const { toast } = useToast();
