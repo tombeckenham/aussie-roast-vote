@@ -579,8 +579,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRoast(roast: InsertAiRoast): Promise<AiRoast> {
-    const [createdRoast] = await db.insert(aiRoasts).values(roast).returning();
-    return createdRoast;
+    // Check if a roast already exists for this candidate
+    const existingRoast = await this.getRoastByCandidate(roast.candidateId);
+    
+    if (existingRoast) {
+      // Update existing roast
+      console.log(`Updating existing roast for candidate ID ${roast.candidateId}`);
+      
+      const [updatedRoast] = await db
+        .update(aiRoasts)
+        .set({ 
+          content: roast.content,
+          fullContent: roast.fullContent
+        })
+        .where(eq(aiRoasts.candidateId, roast.candidateId))
+        .returning();
+      
+      return updatedRoast;
+    } else {
+      // Create new roast
+      console.log(`Creating new roast for candidate ID ${roast.candidateId}`);
+      const [createdRoast] = await db.insert(aiRoasts).values(roast).returning();
+      return createdRoast;
+    }
   }
   
   async getAllRoasts(): Promise<AiRoast[]> {

@@ -37,22 +37,6 @@ const DivisionPage = () => {
     enabled: !!slug
   });
   
-  // Effect to trigger commentary generation when seat data loads
-  useEffect(() => {
-    if (seat?.id) {
-      console.log("Auto-generating commentaries for seat:", seat.name);
-      
-      // First generate the commentaries
-      handleGenerateCommentary();
-      
-      // Then explicitly invalidate the commentaries query after a delay to ensure UI gets updated
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
-        console.log("Refreshing commentaries for seat:", seat.name);
-      }, 5000); // Wait 5 seconds to allow server to generate commentaries
-    }
-  }, [seat?.id]);
-
   // Generate commentaries for all candidates in this seat
   const generateCommentaryMutation = useMutation({
     mutationFn: async () => {
@@ -86,6 +70,35 @@ const DivisionPage = () => {
   const handleGenerateCommentary = () => {
     generateCommentaryMutation.mutate();
   };
+  
+  // Effect to trigger commentary generation when seat data loads
+  useEffect(() => {
+    let refreshInterval: NodeJS.Timeout | null = null;
+    
+    if (seat?.id) {
+      console.log("Auto-generating commentaries for seat:", seat.name);
+      
+      // First generate the commentaries
+      generateCommentaryMutation.mutate();
+      
+      // Setup polling to refresh commentaries every few seconds
+      refreshInterval = setInterval(() => {
+        if (generatingCommentary) {
+          queryClient.invalidateQueries({ queryKey: [`/api/seats/${seat?.id}/commentaries`] });
+          console.log("Refreshing commentaries for seat:", seat.name);
+        } else if (refreshInterval) {
+          clearInterval(refreshInterval);
+        }
+      }, 3000); // Poll every 3 seconds while generating
+    }
+    
+    // Clean up interval on unmount
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+  }, [seat?.id, seat?.name, generatingCommentary, queryClient, generateCommentaryMutation]);
 
   const handleViewCandidate = (id: number) => {
     setLocation(`/candidate/${id}`);

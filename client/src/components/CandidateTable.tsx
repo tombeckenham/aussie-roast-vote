@@ -121,19 +121,12 @@ const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = fals
     return 0;
   });
 
-  // Force a refresh of the commentaries
+  // Force a refresh of the commentaries after fetching candidates
   useEffect(() => {
-    // Setup a polling interval to refresh commentaries when the component first mounts
-    const interval = setInterval(() => {
-      if (isGeneratingCommentary) {
-        refetchCommentaries();
-        console.log("Polling for updated commentaries...");
-      }
-    }, 3000);
-    
-    // Clean up the interval on component unmount
-    return () => clearInterval(interval);
-  }, [isGeneratingCommentary, refetchCommentaries]);
+    if (candidates && candidates.length > 0) {
+      refetchCommentaries();
+    }
+  }, [candidates, refetchCommentaries]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

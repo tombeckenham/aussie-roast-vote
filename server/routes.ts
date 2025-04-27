@@ -199,11 +199,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const candidate of candidates) {
           console.log(`Generating commentary for ${candidate.name}...`);
 
-          // Check if commentary already exists
-          let existingCommentary = ""; // await storage.getRoastByCandidate(candidate.id);
-
-          if (!existingCommentary) {
-            try {
+          // Check if commentary already exists (for display)
+          const existingCommentary = await storage.getRoastByCandidate(candidate.id);
+          
+          // Always add existing commentary to the results if available
+          if (existingCommentary) {
+            commentaryResults[candidate.id] = existingCommentary.content;
+          }
+          
+          // Generate a new commentary regardless if one exists
+          try {
               // Try to use Perplexity first for more recent data
               let fullContent;
               try {
@@ -254,12 +259,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 `Failed to generate commentary for ${candidate.name}:`,
                 error,
               );
-              commentaryResults[candidate.id] =
-                "Commentary generation in progress...";
+              if (!commentaryResults[candidate.id]) {
+                commentaryResults[candidate.id] = "Commentary generation in progress...";
+              }
             }
-          } else {
-            commentaryResults[candidate.id] = existingCommentary.content;
-          }
         }
 
         res.json({
