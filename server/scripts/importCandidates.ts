@@ -1,14 +1,17 @@
-import fs from 'fs';
-import path from 'path';
-import { parse } from 'csv-parse/sync';
-import slugify from 'slugify';
-import { db } from '../db';
-import { 
-  electoralSeats, insertElectoralSeatSchema, 
-  parties, insertPartySchema,
-  candidates, insertCandidateSchema
-} from '@shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import fs from "fs";
+import path from "path";
+import { parse } from "csv-parse/sync";
+import slugify from "slugify";
+import { db } from "../db";
+import {
+  electoralSeats,
+  insertElectoralSeatSchema,
+  parties,
+  insertPartySchema,
+  candidates,
+  insertCandidateSchema,
+} from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 
 interface CandidateCSV {
   state: string;
@@ -21,34 +24,38 @@ interface CandidateCSV {
 
 async function importCandidates() {
   try {
-    console.log('Starting to import candidates from CSV...');
-    
+    console.log("Starting to import candidates from CSV...");
+
     // Track import metrics
     let imported = 0;
     let skipped = 0;
     const errors = [];
-    
+
     // Read and parse the CSV file
-    const filePath = path.resolve('house-candidates.csv');
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const filePath = path.resolve("house-candidates.csv");
+    const fileContent = fs.readFileSync(filePath, "utf-8");
     const records = parse(fileContent, {
       columns: true,
-      skip_empty_lines: true
+      skip_empty_lines: true,
     }) as CandidateCSV[];
-    
+
     console.log(`Parsed ${records.length} records from CSV.`);
 
     // Create a map to track created electoralSeats and parties
     const createdSeats = new Map<string, number>();
     const createdParties = new Map<string, number>();
-    
+
     // Process each record
     for (const record of records) {
       try {
         // Create or get electoral seat
-        const seatSlug = slugify(record.division, { lower: true });
+        const seatSlug = record.division
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, "") // Remove special characters
+          .replace(/\s+/g, "-") // Replace spaces with hyphens
+          .replace(/-+/g, "-"); // Remove consecutive hyphens
         let seatId = createdSeats.get(seatSlug);
-        
+
         if (!seatId) {
           // Check if it already exists in the database
           const existingSeat = await db
@@ -56,7 +63,7 @@ async function importCandidates() {
             .from(electoralSeats)
             .where(eq(electoralSeats.slug, seatSlug))
             .limit(1);
-            
+
           if (existingSeat.length > 0) {
             seatId = existingSeat[0].id;
           } else {
@@ -69,27 +76,32 @@ async function importCandidates() {
               isMarginial: false,
               keyIssues: [],
               previousResults: {},
-              position: { x: 0, y: 0 } // Default position, would need proper mapping
+              position: { x: 0, y: 0 }, // Default position, would need proper mapping
             };
-            
+
             const [seat] = await db
               .insert(electoralSeats)
               .values(seatData)
               .returning();
-              
+
             seatId = seat.id;
-            console.log(`Created electoral seat: ${record.division}, ${record.state} with ID ${seatId}`);
+            console.log(
+              `Created electoral seat: ${record.division}, ${record.state} with ID ${seatId}`,
+            );
           }
-          
+
           createdSeats.set(seatSlug, seatId);
         }
-        
+
         // Create or get party (if not Independent)
         let partyId: number | null = null;
-        if (record.partyBallotName && record.partyBallotName !== 'Independent') {
+        if (
+          record.partyBallotName &&
+          record.partyBallotName !== "Independent"
+        ) {
           let partyKey = record.partyBallotName.toLowerCase();
           partyId = createdParties.get(partyKey);
-          
+
           if (!partyId) {
             // Check if it already exists in the database
             const existingParty = await db
@@ -97,32 +109,34 @@ async function importCandidates() {
               .from(parties)
               .where(eq(parties.name, record.partyBallotName))
               .limit(1);
-              
+
             if (existingParty.length > 0) {
               partyId = existingParty[0].id;
             } else {
               // Create a new party
               const partyData = {
                 name: record.partyBallotName,
-                shortName: record.partyBallotName
+                shortName: record.partyBallotName,
               };
-              
+
               const [party] = await db
                 .insert(parties)
                 .values(partyData)
                 .returning();
-                
+
               partyId = party.id;
-              console.log(`Created party: ${record.partyBallotName} with ID ${partyId}`);
+              console.log(
+                `Created party: ${record.partyBallotName} with ID ${partyId}`,
+              );
             }
-            
+
             createdParties.set(partyKey, partyId);
           }
         }
-        
+
         // Create candidate
         const fullName = `${record.ballotGivenName} ${record.surname}`;
-        
+
         // Check if candidate already exists - based on name and ballot position
         // This allows multiple candidates with the same surname in the same electorate
         const existingCandidate = await db
@@ -132,10 +146,10 @@ async function importCandidates() {
             sql`${candidates.surname} = ${record.surname} AND 
                 ${candidates.givenName} = ${record.ballotGivenName} AND 
                 ${candidates.electoralSeatId} = ${seatId} AND
-                ${candidates.ballotPosition} = ${parseInt(record.ballotPosition, 10)}`
+                ${candidates.ballotPosition} = ${parseInt(record.ballotPosition, 10)}`,
           )
           .limit(1);
-          
+
         if (existingCandidate.length === 0) {
           // Create new candidate
           const candidateData = {
@@ -146,18 +160,22 @@ async function importCandidates() {
             partyId: partyId,
             partyBallotName: record.partyBallotName,
             ballotPosition: parseInt(record.ballotPosition, 10),
-            isIndependent: record.partyBallotName === 'Independent'
+            isIndependent: record.partyBallotName === "Independent",
           };
-          
+
           const [candidate] = await db
             .insert(candidates)
             .values(candidateData)
             .returning();
-            
-          console.log(`Created candidate: ${fullName} (${record.partyBallotName}) for ${record.division}, ${record.state}`);
+
+          console.log(
+            `Created candidate: ${fullName} (${record.partyBallotName}) for ${record.division}, ${record.state}`,
+          );
           imported++;
         } else {
-          console.log(`Skipping duplicate candidate: ${fullName} in ${record.division}`);
+          console.log(
+            `Skipping duplicate candidate: ${fullName} in ${record.division}`,
+          );
           skipped++;
         }
       } catch (error) {
@@ -165,29 +183,29 @@ async function importCandidates() {
         errors.push(`${record.division} - ${record.surname}: ${error.message}`);
       }
     }
-    
+
     // Display summary
-    console.log('\n📊 Import summary:');
+    console.log("\n📊 Import summary:");
     console.log(`- Total candidates in CSV: ${records.length}`);
     console.log(`- Already in database: ${skipped}`);
     console.log(`- Successfully imported: ${imported}`);
     console.log(`- Errors: ${errors.length}`);
-    
+
     if (errors.length > 0) {
-      console.log('\n❌ Error details:');
-      errors.forEach(err => console.log(`- ${err}`));
+      console.log("\n❌ Error details:");
+      errors.forEach((err) => console.log(`- ${err}`));
     }
-    
-    console.log('\n✅ Import completed successfully');
-    
+
+    console.log("\n✅ Import completed successfully");
+
     return {
       totalCandidates: records.length,
       skipped,
       imported,
-      errors
+      errors,
     };
   } catch (error) {
-    console.error('❌ Error importing candidates:', error);
+    console.error("❌ Error importing candidates:", error);
     throw error;
   }
 }
@@ -196,11 +214,11 @@ async function importCandidates() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   importCandidates()
     .then(() => {
-      console.log('Candidate import script finished.');
+      console.log("Candidate import script finished.");
       process.exit(0);
     })
-    .catch(err => {
-      console.error('Script failed:', err);
+    .catch((err) => {
+      console.error("Script failed:", err);
       process.exit(1);
     });
 }
