@@ -402,10 +402,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "Candidate not found" });
         }
 
-        // Generate the caricature image directly using OpenAI
-        console.log(`Generating caricature for candidate ${candidate.name}...`);
+        // Generate the caricature image using xAI instead of OpenAI
+        console.log(`Generating caricature for candidate ${candidate.name} using xAI...`);
         const imageData =
-          await openaiService.generateCaricatureImage(candidate);
+          await xaiService.generateCaricatureImage(candidate);
 
         // Return only the image data
         res.json({

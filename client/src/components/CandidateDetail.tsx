@@ -265,7 +265,7 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
                     className="rounded-lg max-w-full h-auto shadow-md mb-2"
                   />
                   <p className="text-xs mt-4 text-center opacity-75">
-                    Generated using OpenAI's GPT-Image-1 model
+                    Generated using xAI's Grok-2-vision model
                   </p>
                 </div>
               ) : (
@@ -284,7 +284,7 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
               <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-lg text-center">
                 <p className="text-sm">
                   <span className="font-bold">Please wait:</span> Generating caricature image 
-                  can take 30-45 seconds. GPT-Image-1 is creating a humorous visual interpretation.
+                  can take 30-45 seconds. xAI's Grok-2-vision is creating a humorous visual interpretation.
                 </p>
               </div>
             )}
