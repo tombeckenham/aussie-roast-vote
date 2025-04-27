@@ -10,6 +10,7 @@ import path from "path";
 import { db } from "../db";
 import { candidates } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import fetch from "node-fetch";
 
 // Initialize the OpenAI client with x.ai base URL and API key
 const openai = new OpenAI({
@@ -314,10 +315,93 @@ ${processedContent.substring(0, 300)}...`);
   }
 }
 
+/**
+ * Generate a caricature image of a political candidate using xAI's image generation API
+ * @param candidate The candidate object
+ * @param description Optional description to enhance the prompt
+ * @returns Base64 encoded image data or image URL
+ */
+export async function generateCaricatureImage(
+  candidate: Candidate,
+  description?: string
+): Promise<string | null> {
+  try {
+    console.log(`Generating caricature image for ${candidate.name} using xAI...`);
+    
+    // Create a detailed prompt for xAI focused on Australian political humor
+    const policyStr = candidate.keyPolicies && candidate.keyPolicies.length > 0 
+      ? `Key policies: ${candidate.keyPolicies.join(', ')}.` 
+      : '';
+    
+    const enhancedPrompt = `
+      Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
+      from the ${candidate.partyBallotName || 'Independent'} party.
+      
+      ${policyStr}
+      
+      ${candidate.isIncumbent ? 'They are the current incumbent MP.' : ''}
+      ${candidate.bio ? 'Bio excerpt: ' + candidate.bio.substring(0, 150) : ''}
+      
+      Style: Australian political cartoon with exaggerated features, bright colors, clean lines,
+      similar to cartoons from The Australian, Sydney Morning Herald, or The Betoota Advocate.
+      
+      Must include these Australian elements: 
+      - Either a cork hat, Australian flag, kangaroo, koala, or Sydney Opera House
+      - Colors resembling the Australian flag (green and gold) or the outback (orange and red)
+      
+      Quintessential Aussie caricature style with satirical elements
+      - A humorous visual joke or pun based on their political stance
+      
+      Format: Digital illustration with white background, clean and shareable
+    `;
+    
+    // Generate the image using xAI's image generation model
+    const response = await fetch("https://api.x.ai/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.XAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        prompt: enhancedPrompt.trim(),
+        model: "grok-2-vision-1212", // Using the latest model for image generation
+        n: 1,
+        size: "1024x1024"
+      })
+    });
+    
+    const data = await response.json();
+    console.log(`xAI image generation response status: ${response.status}`);
+    
+    // Get the image URL from the response
+    if (data.data && data.data.length > 0 && data.data[0].url) {
+      console.log(`Successfully generated caricature image for ${candidate.name} using xAI`);
+      
+      // Fetch the image from the URL and convert to base64
+      try {
+        const imageResponse = await fetch(data.data[0].url);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const base64Image = Buffer.from(imageBuffer).toString('base64');
+        return base64Image;
+      } catch (fetchError) {
+        console.error(`Error fetching image for ${candidate.name}:`, fetchError);
+        return null;
+      }
+    } else {
+      console.error(`No image URL returned for ${candidate.name} from xAI:`, data);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error generating caricature image for ${candidate.name}:`, error);
+    return null;
+  }
+}
+
 export default {
   generateCandidateCaricature,
   generateCandidateRoast,
   answerCandidateQuestion,
   generateCampaignActivities,
   processCandidatePerplexityData,
+  generateCaricatureImage
 };
