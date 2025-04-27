@@ -14,6 +14,7 @@ import {
   generateCandidateData,
 } from "./services/electoralData";
 import { answerCandidateQuestion } from "./services/grok";
+import xaiService from "./services/xaiService";
 import {
   searchSeatsByPostcode,
   initializePostcodeMapping,
@@ -212,6 +213,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching candidate:", error);
       res.status(500).json({ message: "Failed to fetch candidate" });
+    }
+  });
+
+  // Generate caricature for candidate
+  app.post("/api/candidates/:id/caricature", async (req: Request, res: Response) => {
+    try {
+      const candidateId = parseInt(req.params.id, 10);
+
+      if (isNaN(candidateId)) {
+        return res.status(400).json({ message: "Invalid candidate ID" });
+      }
+
+      const candidate = await storage.getCandidateById(candidateId);
+      if (!candidate) {
+        return res.status(404).json({ message: "Candidate not found" });
+      }
+
+      // Generate the caricature using xAI
+      console.log(`Generating caricature for candidate ${candidate.name}...`);
+      const caricatureDescription = await xaiService.generateCandidateCaricature(candidate);
+
+      if (!caricatureDescription) {
+        return res.status(500).json({ message: "Failed to generate caricature" });
+      }
+
+      // Return the generated description
+      res.json({ 
+        candidateId, 
+        name: candidate.name,
+        description: caricatureDescription 
+      });
+    } catch (error) {
+      console.error("Error generating caricature:", error);
+      res.status(500).json({ message: "Failed to generate caricature" });
     }
   });
 
