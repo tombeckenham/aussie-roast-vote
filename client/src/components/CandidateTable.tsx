@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface CandidateTableProps {
   seatId: number;
   onViewCandidate: (id: number) => void;
+  isGeneratingCommentary?: boolean;
 }
 
 interface Candidate {
@@ -37,7 +38,7 @@ interface CaricatureData {
   imageData: string | null;
 }
 
-const CandidateTable = ({ seatId, onViewCandidate }: CandidateTableProps) => {
+const CandidateTable = ({ seatId, onViewCandidate, isGeneratingCommentary = false }: CandidateTableProps) => {
   const queryClient = useQueryClient();
   const [generatingCaricature, setGeneratingCaricature] = useState<number | null>(null);
 
@@ -47,8 +48,8 @@ const CandidateTable = ({ seatId, onViewCandidate }: CandidateTableProps) => {
     enabled: !!seatId,
   });
 
-  // Fetch candidate roasts from the API
-  const { data: roasts = {} } = useQuery<Record<number, string>>({
+  // Fetch candidate commentaries from the API
+  const { data: commentaries = {} } = useQuery<Record<number, string>>({
     queryKey: [`/api/seats/${seatId}/roasts`],
     enabled: !!seatId && !!candidates?.length,
     initialData: {},
@@ -120,7 +121,7 @@ const CandidateTable = ({ seatId, onViewCandidate }: CandidateTableProps) => {
             <TableHead>Candidate</TableHead>
             <TableHead>Party</TableHead>
             <TableHead>Key Policies</TableHead>
-            <TableHead>The Roast</TableHead>
+            <TableHead>Commentary</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -163,12 +164,21 @@ const CandidateTable = ({ seatId, onViewCandidate }: CandidateTableProps) => {
                 </div>
               </TableCell>
               <TableCell>
-                {roasts[candidate.id] ? (
+                {isGeneratingCommentary && !commentaries[candidate.id] ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-4/5" />
+                    <div className="flex items-center space-x-2 text-xs text-blue-600">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Generating commentary...</span>
+                    </div>
+                  </div>
+                ) : commentaries[candidate.id] ? (
                   <div className="text-sm max-w-md line-clamp-2">
-                    {roasts[candidate.id]}
+                    {commentaries[candidate.id]}
                   </div>
                 ) : (
-                  <span className="text-gray-500 text-sm">Roast will be generated when you view this candidate</span>
+                  <span className="text-gray-500 text-sm">Commentary will be generated automatically</span>
                 )}
               </TableCell>
               <TableCell>

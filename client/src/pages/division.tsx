@@ -149,7 +149,11 @@ const DivisionPage = () => {
           </div>
         )}
         
-        <CandidateTable seatId={seat?.id} onViewCandidate={handleViewCandidate} />
+        <CandidateTable 
+          seatId={seat?.id} 
+          onViewCandidate={handleViewCandidate} 
+          isGeneratingCommentary={generatingCommentary} 
+        />
       </div>
     </div>
   );
