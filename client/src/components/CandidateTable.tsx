@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, User, Loader2, RefreshCw } from "lucide-react";
+import { ChevronRight, User, Loader2, RefreshCw, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -186,15 +186,13 @@ const CandidateTable = ({
             </div>
           </CardHeader>
 
-          <CardContent>
-
-
+          <CardContent className="flex flex-col h-full">
             {/* Key Policies */}
-            <div className="mb-3">
+            <div className="mb-4">
               <h4 className="text-sm font-semibold text-muted-foreground mb-2">
                 Key Policies
               </h4>
-              <ul className="list-disc pl-5 text-gray-700 text-xs space-y-1">
+              <ul className="list-disc pl-5 text-gray-700 text-sm space-y-2">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
                   candidate.keyPolicies.slice(0, 3).map((policy, idx) => (
                     <li key={idx}>{policy}</li>
@@ -210,8 +208,8 @@ const CandidateTable = ({
             </div>
 
             {/* Commentary */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-1">
+            <div className="mb-4 flex-grow">
+              <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Overview
                 </h4>
@@ -239,19 +237,21 @@ const CandidateTable = ({
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-4/5" />
-                  <div className="flex items-center space-x-2 text-xs text-blue-600">
+                  <Skeleton className="h-4 w-3/5" />
+                  <div className="flex items-center space-x-2 text-xs text-blue-600 mt-2">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     <span>Generating overview...</span>
                   </div>
                 </div>
               ) : commentaries[candidate.id] ? (
-                <div className="text-sm py-2 border-l-2 pl-3 border-l-aussie-green/40 overflow-y-auto max-h-[350px] text-gray-700">
+                <div className="text-sm py-3 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 overflow-y-auto max-h-[380px] text-gray-700">
                   {commentaries[candidate.id]}
                 </div>
               ) : (
-                <span className="text-gray-500 text-sm">
-                  Overview will be generated automatically
-                </span>
+                <div className="flex items-center space-x-2 text-gray-500 text-sm h-[50px] justify-center border border-dashed border-gray-200 rounded p-4">
+                  <Clock className="h-4 w-4" />
+                  <span>Overview will be generated automatically</span>
+                </div>
               )}
             </div>
           </CardContent>
