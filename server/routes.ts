@@ -32,61 +32,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       
-      const searchQuery = q as string;
+      const searchQuery = (q as string).trim();
       let results: ElectoralSeat[] = [];
-      const existingIds = new Set<number>();
+      const uniqueResults = new Map<number, ElectoralSeat>();
       
       // Get all seats once for efficient processing
       const allSeats = await storage.getElectoralSeats();
       
+      // Run all search methods in parallel to cover all cases properly
+      
       // 1. Check if it's a postcode (4 digits)
       if (/^\d{4}$/.test(searchQuery)) {
+        console.log(`Searching for postcode: ${searchQuery}`);
         const postcodeResults = await searchSeatsByPostcode(searchQuery);
         for (const seat of postcodeResults) {
-          results.push(seat);
-          existingIds.add(seat.id);
-        }
-        
-        // If searching for postcode 2087, explicitly include Mackellar
-        if (searchQuery === '2087') {
-          const mackellarSeat = allSeats.find(s => s.name.toLowerCase() === 'mackellar');
-          if (mackellarSeat && !existingIds.has(mackellarSeat.id)) {
-            results.push(mackellarSeat);
-            existingIds.add(mackellarSeat.id);
-          }
+          uniqueResults.set(seat.id, seat);
         }
       }
       
-      // 2. Check for suburb names like "Killarney Heights"
+      // 2. Search by seat name or state
+      const nameResults = await storage.searchElectoralSeatsByName(searchQuery);
+      for (const seat of nameResults) {
+        uniqueResults.set(seat.id, seat);
+      }
+      
+      // 3. Search by suburb name
       const { searchSeatsBySuburb } = await import('./services/suburbService');
       const suburbResults = searchSeatsBySuburb(searchQuery, allSeats);
       for (const seat of suburbResults) {
-        if (!existingIds.has(seat.id)) {
-          results.push(seat);
-          existingIds.add(seat.id);
-        }
+        uniqueResults.set(seat.id, seat);
       }
       
-      // 3. If query is "Mackellar", ensure it returns the Mackellar seat
-      if (searchQuery.toLowerCase() === 'mackellar') {
-        const mackellarSeat = allSeats.find(s => s.name.toLowerCase() === 'mackellar');
-        if (mackellarSeat && !existingIds.has(mackellarSeat.id)) {
-          results.push(mackellarSeat);
-          existingIds.add(mackellarSeat.id);
-        }
-      }
+      // Convert map to array
+      const finalResults = Array.from(uniqueResults.values());
       
-      // 4. Search by name and add any results not already included
-      const nameResults = await storage.searchElectoralSeatsByName(searchQuery);
-      for (const seat of nameResults) {
-        if (!existingIds.has(seat.id)) {
-          results.push(seat);
-          existingIds.add(seat.id);
-        }
-      }
-      
-      console.log(`Unified search for "${searchQuery}" found ${results.length} seats`);
-      return res.json(results);
+      console.log(`Unified search for "${searchQuery}" found ${finalResults.length} seats`);
+      return res.json(finalResults);
     } catch (error) {
       console.error("Error searching seats:", error);
       res.status(500).json({ message: "Failed to search electoral seats" });
