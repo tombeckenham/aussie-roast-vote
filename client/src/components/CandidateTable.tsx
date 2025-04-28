@@ -61,38 +61,47 @@ const CandidateTable = ({
     data: candidates,
     isLoading,
     error,
-    refetch: refetchCandidates
+    refetch: refetchCandidates,
   } = useQuery<Candidate[]>({
     queryKey: [`/api/seats/${seatId}/candidates`],
     enabled: !!seatId,
   });
-  
+
   // Create a polling effect for when policies are being generated
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    
+
     if (generatingPolicies.length > 0) {
       console.log("Starting polling for updated candidate data...");
-      
+
       // Initial refresh immediately
       refetchCandidates();
-      
+
       // Poll every 2 seconds while generating policies
       interval = setInterval(() => {
         console.log("Polling for updated candidate data...");
-        refetchCandidates().then(result => {
+        refetchCandidates().then((result) => {
           if (!result.data) return;
-          
+
           // Check if any candidates we're waiting for now have policies
           const updatedGeneratingPolicies = [...generatingPolicies];
           let hasUpdates = false;
-          
+
           // Check each candidate in our generating list
           for (const candidateId of [...generatingPolicies]) {
-            const updatedCandidate = result.data.find(c => c.id === candidateId);
-            
-            if (updatedCandidate && updatedCandidate.keyPolicies && updatedCandidate.keyPolicies.length > 0) {
-              console.log("Policies received for candidate:", updatedCandidate.name);
+            const updatedCandidate = result.data.find(
+              (c) => c.id === candidateId,
+            );
+
+            if (
+              updatedCandidate &&
+              updatedCandidate.keyPolicies &&
+              updatedCandidate.keyPolicies.length > 0
+            ) {
+              console.log(
+                "Policies received for candidate:",
+                updatedCandidate.name,
+              );
               // Remove this candidate from our generating list
               const index = updatedGeneratingPolicies.indexOf(candidateId);
               if (index > -1) {
@@ -101,7 +110,7 @@ const CandidateTable = ({
               }
             }
           }
-          
+
           // Update our generating list if any candidates got their policies
           if (hasUpdates) {
             setGeneratingPolicies(updatedGeneratingPolicies);
@@ -109,7 +118,7 @@ const CandidateTable = ({
         });
       }, 2000);
     }
-    
+
     return () => {
       if (interval !== null) {
         console.log("Clearing polling interval");
@@ -183,37 +192,51 @@ const CandidateTable = ({
             generateCaricatureMutation.mutate(candidate.id);
           }, 1000 * Math.random()); // Random delay between 0-1000ms
         }
-        
+
         // Auto-generate policies if missing
-        if ((!candidate.keyPolicies || candidate.keyPolicies.length === 0) && 
-            !generatingPolicies.includes(candidate.id)) {
+        if (
+          (!candidate.keyPolicies || candidate.keyPolicies.length === 0) &&
+          !generatingPolicies.includes(candidate.id)
+        ) {
           // Use a bigger delay for policies to avoid API rate limits
-          setTimeout(() => {
-            console.log(`Auto-generating policies for ${candidate.name}`);
-            setGeneratingPolicies(prev => [...prev, candidate.id]);
-            
-            // Trigger policy generation for this candidate
-            fetch(`/api/candidates/${candidate.id}/generate-policies`, {
-              method: "POST",
-            })
-              .then(() => {
-                console.log("Policy generation initiated for:", candidate.name);
-                refetchCandidates();
-                
-                // Set a timeout to clear the loading state after 30 seconds
-                setTimeout(() => {
-                  if (generatingPolicies.includes(candidate.id)) {
-                    console.log("Clearing policy generation state after timeout");
-                    setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
-                    refetchCandidates();
-                  }
-                }, 30000);
+          setTimeout(
+            () => {
+              console.log(`Auto-generating policies for ${candidate.name}`);
+              setGeneratingPolicies((prev) => [...prev, candidate.id]);
+
+              // Trigger policy generation for this candidate
+              fetch(`/api/candidates/${candidate.id}/generate-policies`, {
+                method: "POST",
               })
-              .catch((err) => {
-                console.error("Error initiating policy generation:", err);
-                setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
-              });
-          }, 2000 + 2000 * Math.random()); // Random delay between 2-4 seconds
+                .then(() => {
+                  console.log(
+                    "Policy generation initiated for:",
+                    candidate.name,
+                  );
+                  refetchCandidates();
+
+                  // Set a timeout to clear the loading state after 30 seconds
+                  setTimeout(() => {
+                    if (generatingPolicies.includes(candidate.id)) {
+                      console.log(
+                        "Clearing policy generation state after timeout",
+                      );
+                      setGeneratingPolicies((prev) =>
+                        prev.filter((id) => id !== candidate.id),
+                      );
+                      refetchCandidates();
+                    }
+                  }, 30000);
+                })
+                .catch((err) => {
+                  console.error("Error initiating policy generation:", err);
+                  setGeneratingPolicies((prev) =>
+                    prev.filter((id) => id !== candidate.id),
+                  );
+                });
+            },
+            2000 + 2000 * Math.random(),
+          ); // Random delay between 2-4 seconds
         }
       });
     }
@@ -320,7 +343,7 @@ const CandidateTable = ({
                   disabled={generatingPolicies.includes(candidate.id)}
                   onClick={() => {
                     // Set loading state for this candidate
-                    setGeneratingPolicies(prev => [...prev, candidate.id]);
+                    setGeneratingPolicies((prev) => [...prev, candidate.id]);
 
                     // Trigger policy regeneration for this candidate
                     fetch(
@@ -330,24 +353,36 @@ const CandidateTable = ({
                       },
                     )
                       .then(() => {
-                        console.log("Policy generation initiated for:", candidate.name);
+                        console.log(
+                          "Policy generation initiated for:",
+                          candidate.name,
+                        );
                         // Start polling by immediately refreshing data
                         refetchCandidates();
-                        
+
                         // Set a timeout to clear the loading state after 30 seconds
                         // just in case the polling doesn't detect the changes
                         setTimeout(() => {
                           if (generatingPolicies.includes(candidate.id)) {
-                            console.log("Clearing generation state after timeout");
-                            setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
+                            console.log(
+                              "Clearing generation state after timeout",
+                            );
+                            setGeneratingPolicies((prev) =>
+                              prev.filter((id) => id !== candidate.id),
+                            );
                             // Try one final refresh
                             refetchCandidates();
                           }
                         }, 30000);
                       })
                       .catch((err) => {
-                        console.error("Error initiating policy generation:", err);
-                        setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
+                        console.error(
+                          "Error initiating policy generation:",
+                          err,
+                        );
+                        setGeneratingPolicies((prev) =>
+                          prev.filter((id) => id !== candidate.id),
+                        );
                       });
                   }}
                 >
