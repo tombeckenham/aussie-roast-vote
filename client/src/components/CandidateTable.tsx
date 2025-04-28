@@ -67,8 +67,28 @@ const CandidateTable = ({
   } = useQuery<Candidate[]>({
     queryKey: [`/api/seats/${seatId}/candidates`],
     enabled: !!seatId,
-    refetchInterval: generatingPolicies !== null ? 2000 : false, // Poll every 2 seconds while generating policies
   });
+  
+  // Create a polling effect for when policies are being generated
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (generatingPolicies !== null) {
+      console.log("Starting polling for updated candidate data...");
+      
+      // Poll every 1.5 seconds while generating policies
+      interval = setInterval(() => {
+        console.log("Polling for updated candidate data...");
+        refetchCandidates();
+      }, 1500);
+    }
+    
+    return () => {
+      if (interval !== null) {
+        clearInterval(interval);
+      }
+    };
+  }, [generatingPolicies, refetchCandidates]);
 
   // Fetch seat information to display in the incumbent's track record
   const { data: seat } = useQuery<{ id: number; name: string }>({
