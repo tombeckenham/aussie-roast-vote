@@ -633,11 +633,8 @@ export async function generateCandidatePolicies(
             ];
           }
           
-          // If we only have the Aussie summary, return it with some default policies
-          return [
-            aussiePolicySummary[0],
-            ...defaultPolicies.slice(0, 2)
-          ];
+          // If we only have the Aussie summary, return it alone (avoiding default policies)
+          return [aussiePolicySummary[0]];
         }
       } catch (error) {
         console.error(`Error generating Aussie policy summary for ${candidate.name}:`, error);
@@ -675,9 +672,10 @@ export async function generateCandidatePolicies(
     // Set up a promise that times out
     const timeoutPromise = new Promise<string[]>((resolve) => {
       setTimeout(() => {
-        console.log(`Policy generation timed out for ${candidate.name}, using defaults`);
-        resolve(defaultPolicies);
-      }, 8000); // 8 second timeout (increased from 5 seconds)
+        console.log(`Policy generation timed out for ${candidate.name}, using single fallback policy`);
+        // Just use a single generic policy message instead of the full default set
+        resolve(["This candidate's policies are currently unavailable."]);
+      }, 8000); // 8 second timeout
     });
 
     // The actual API call promise
@@ -703,14 +701,14 @@ export async function generateCandidatePolicies(
               return;
             }
           }
-          resolve(defaultPolicies);
+          resolve(["Failed to generate specific policy information."]);
         } catch (parseError) {
           console.error(`Error parsing policy JSON for ${candidate.name}:`, parseError);
-          resolve(defaultPolicies);
+          resolve(["Failed to parse policy information."]);
         }
       } catch (error) {
         console.error(`API error for ${candidate.name}:`, error);
-        resolve(defaultPolicies);
+        resolve(["API error occurred while generating policy information."]);
       }
     });
 
@@ -718,9 +716,7 @@ export async function generateCandidatePolicies(
     return Promise.race([apiPromise, timeoutPromise]);
   } catch (error) {
     console.error(`Error in generateCandidatePolicies for ${candidate.name}:`, error);
-    return ["Will address key issues facing the electorate.", 
-            "Committed to improving local infrastructure.", 
-            "Supports economic growth and job creation."];
+    return ["An error occurred while generating policy information."];
   }
 }
 
