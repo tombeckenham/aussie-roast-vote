@@ -68,7 +68,6 @@ const CandidateTable = ({
   });
 
   // Create a polling effect for when policies are being generated
-  /*
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
@@ -127,7 +126,6 @@ const CandidateTable = ({
       }
     };
   }, [generatingPolicies, refetchCandidates]);
-  */
 
   // Fetch seat information to display in the incumbent's track record
   const { data: seat } = useQuery<{ id: number; name: string }>({
@@ -331,56 +329,6 @@ const CandidateTable = ({
           </CardHeader>
 
           <CardContent className="flex flex-col">
-            {/* Commentary */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-sm font-semibold text-muted-foreground">
-                  Overview
-                </h4>
-                {commentaries[candidate.id] && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2"
-                    onClick={() => {
-                      // Only need to trigger a regeneration of this specific candidate on the server
-                      fetch(
-                        `/api/candidates/${candidate.id}/regenerate-commentary`,
-                        {
-                          method: "POST",
-                        },
-                      ).then(() => {
-                        // Force a refresh of the commentaries
-                        refetchCommentaries();
-                      });
-                    }}
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    <span className="text-xs">Regenerate</span>
-                  </Button>
-                )}
-              </div>
-              {isGeneratingCommentary && !commentaries[candidate.id] ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-4 w-3/5" />
-                  <div className="flex items-center space-x-2 text-xs text-blue-600 mt-2">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Generating overview...</span>
-                  </div>
-                </div>
-              ) : commentaries[candidate.id] ? (
-                <div className="text-sm py-2 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 text-gray-700">
-                  {commentaries[candidate.id]}
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2 text-gray-500 text-sm justify-center border border-dashed border-gray-200 rounded p-2">
-                  <Clock className="h-4 w-4" />
-                  <span>Click "Generate" to create overview</span>
-                </div>
-              )}
-            </div>
             {/* Key Policies */}
             <div className="mb-2">
               <div className="flex justify-between items-center mb-1">
@@ -454,7 +402,7 @@ const CandidateTable = ({
               <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
                   candidate.keyPolicies
-                    .slice(0, 1)
+                    .slice(0, 3)
                     .map((policy, idx) => <li key={idx}>{policy}</li>)
                 ) : generatingPolicies.includes(candidate.id) ? (
                   <div className="flex items-center space-x-2 text-xs text-blue-600 ml-[-20px] mt-2">
@@ -464,10 +412,61 @@ const CandidateTable = ({
                 ) : (
                   <>
                     <li>Policy information unavailable</li>
-                    <li>Click "Regenerate" button to generate policies</li>
+                    <li>Policies will be generated automatically</li>
                   </>
                 )}
               </ul>
+            </div>
+
+            {/* Commentary */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Overview
+                </h4>
+                {commentaries[candidate.id] && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => {
+                      // Only need to trigger a regeneration of this specific candidate on the server
+                      fetch(
+                        `/api/candidates/${candidate.id}/regenerate-commentary`,
+                        {
+                          method: "POST",
+                        },
+                      ).then(() => {
+                        // Force a refresh of the commentaries
+                        refetchCommentaries();
+                      });
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Regenerate</span>
+                  </Button>
+                )}
+              </div>
+              {isGeneratingCommentary && !commentaries[candidate.id] ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-3/5" />
+                  <div className="flex items-center space-x-2 text-xs text-blue-600 mt-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Generating overview...</span>
+                  </div>
+                </div>
+              ) : commentaries[candidate.id] ? (
+                <div className="text-sm py-2 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 text-gray-700">
+                  {commentaries[candidate.id]}
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-gray-500 text-sm justify-center border border-dashed border-gray-200 rounded p-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Overview will be generated automatically</span>
+                </div>
+              )}
             </div>
           </CardContent>
 

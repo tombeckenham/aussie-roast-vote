@@ -79,13 +79,20 @@ const DivisionPage = () => {
     },
   });
 
-  // Auto-generation has been disabled per user request
-  // Only set up polling for refreshing when the user manually triggers generation
+  // Effect to trigger commentary generation when seat data loads (only once)
   useEffect(() => {
     let refreshInterval: NodeJS.Timeout | null = null;
+    let hasGenerated = false; // Flag to track if we've already triggered generation
 
-    // Only set up polling if we're actively generating
-    if (seat?.id && generatingCommentary) {
+    if (seat?.id && !hasGenerated) {
+      console.log("Auto-generating commentaries for seat:", seat.name);
+      hasGenerated = true; // Set flag to prevent re-triggering
+
+      // Generate commentaries only if we haven't already triggered it
+      if (!generateCommentaryMutation.isPending) {
+        generateCommentaryMutation.mutate();
+      }
+
       // Setup polling to refresh commentaries every few seconds
       refreshInterval = setInterval(() => {
         if (generatingCommentary) {
@@ -111,7 +118,7 @@ const DivisionPage = () => {
         clearInterval(refreshInterval);
       }
     };
-  }, [seat?.id, generatingCommentary]);
+  }, [seat?.id]);
 
   const handleGenerateCommentary = () => {
     generateCommentaryMutation.mutate();
