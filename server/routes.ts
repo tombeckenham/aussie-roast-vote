@@ -723,15 +723,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log the regeneration request
       console.log(`Policy regeneration requested for ${candidate.name}${forceRegenerate ? ' (forced)' : ''}`);
       
-
       // Get electoral seat for context
       const seat = await storage.getElectoralSeatById(candidate.electoralSeatId);
       if (!seat) {
         return res.status(404).json({ message: "Electoral seat not found" });
       }
 
-      // If candidate already has policies, return them unless force=true is specified
-      if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && req.query.force !== 'true') {
+      // If candidate already has policies AND force=true is NOT specified, return existing policies
+      if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && !forceRegenerate) {
         console.log(`Candidate ${candidate.name} already has policies, returning existing ones`);
         return res.json({
           id: candidate.id,
@@ -751,9 +750,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "processing"
       });
       
-      // No need to track if we've responded since we always respond immediately
-      let generationComplete = false;
-      
       // Import Perplexity service for getting raw data
       const { default: perplexityService } = await import("./services/perplexityService");
       
@@ -768,7 +764,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!policies || policies.length === 0) {
           console.error(`No policies generated for ${candidate.name}`);
-          generationComplete = true;
           return;
         }
 
@@ -777,12 +772,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!updatedCandidate) {
           console.error(`Failed to update ${candidate.name} with policies in database`);
-          generationComplete = true;
           return;
         }
 
         console.log(`Successfully updated policies for ${candidate.name}:`, policies);
-        generationComplete = true;
       } catch (error) {
         // If Perplexity data fails, fall back to xAI only
         const perplexityError = error as Error;
@@ -793,7 +786,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!policies || policies.length === 0) {
           console.error(`No policies generated for ${candidate.name}`);
-          generationComplete = true;
           return;
         }
 
@@ -802,12 +794,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!updatedCandidate) {
           console.error(`Failed to update ${candidate.name} with policies in database`);
-          generationComplete = true;
           return;
         }
 
         console.log(`Successfully updated policies for ${candidate.name} using fallback:`, policies);
-        generationComplete = true;
       }
     } catch (error) {
       console.error("Error generating policies:", error);

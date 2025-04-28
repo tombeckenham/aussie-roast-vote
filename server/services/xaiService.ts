@@ -330,6 +330,9 @@ export async function processPolicyPerplexityData(
       Really take the piss out of the policies. Make the summary short and sweet.
       1 sentence is enough. Don't include g'day or any preamble. Just get straight into it.
       
+      IMPORTANT: Do not use any markdown formatting like asterisks (*), hashtags (#), 
+      or other special characters. Plain text only.
+      
       Here's the raw policy data:
       ${extractedPolicies.length > 0 
         ? extractedPolicies.join('\n') 
@@ -352,8 +355,18 @@ export async function processPolicyPerplexityData(
       temperature: 0.8,
     });
 
-    const processedContent = response.choices[0].message.content || 
+    let processedContent = response.choices[0].message.content || 
       "This drongo's policies are as empty as a pub on Sunday morning.";
+    
+    // Clean up any markdown formatting that might have been included despite instructions
+    processedContent = processedContent
+      .replace(/\*\*/g, '') // Remove bold formatting
+      .replace(/\*/g, '')   // Remove italic formatting
+      .replace(/^[-*#]+\s*/g, '') // Remove bullet points and hashtags at the beginning
+      .replace(/^[^a-zA-Z0-9]*/, '') // Remove any non-alphanumeric characters at the start
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove Markdown links
+      .replace(/`([^`]+)`/g, '$1')  // Remove code formatting
+      .trim();
     
     console.log(`Generated policy summary for ${candidateName}: ${processedContent}`);
 
