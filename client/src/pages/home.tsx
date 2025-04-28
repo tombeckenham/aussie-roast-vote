@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import IntroSection from "@/components/IntroSection";
 import SeatSelector from "@/components/SeatSelector";
+import PopularSeats from "@/components/PopularSeats";
 import SeatInfo from "@/components/SeatInfo";
 import CandidateList from "@/components/CandidateList";
 
@@ -18,6 +19,7 @@ const Home = () => {
     <>
       <IntroSection />
       <SeatSelector />
+      <PopularSeats />
     </>
   );
 };
