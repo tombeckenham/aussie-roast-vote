@@ -51,9 +51,7 @@ const CandidateTable = ({
   const [generatingCaricature, setGeneratingCaricature] = useState<
     number | null
   >(null);
-  const [generatingPolicies, setGeneratingPolicies] = useState<number | null>(
-    null,
-  );
+  const [generatingPolicies, setGeneratingPolicies] = useState<number[]>([]);
   const [commentariesState, setCommentaries] = useState<Record<number, string>>(
     {},
   );
@@ -73,7 +71,7 @@ const CandidateTable = ({
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
-    if (generatingPolicies !== null) {
+    if (generatingPolicies.length > 0) {
       console.log("Starting polling for updated candidate data...");
       
       // Initial refresh immediately
@@ -83,14 +81,30 @@ const CandidateTable = ({
       interval = setInterval(() => {
         console.log("Polling for updated candidate data...");
         refetchCandidates().then(result => {
-          // Check if the candidate we're waiting for now has policies
-          const candidateId = generatingPolicies;
-          const updatedCandidate = result.data?.find(c => c.id === candidateId);
+          if (!result.data) return;
           
-          if (updatedCandidate && updatedCandidate.keyPolicies && updatedCandidate.keyPolicies.length > 0) {
-            console.log("Policies received for candidate:", updatedCandidate.name);
-            // Stop loading state and polling
-            setGeneratingPolicies(null);
+          // Check if any candidates we're waiting for now have policies
+          const updatedGeneratingPolicies = [...generatingPolicies];
+          let hasUpdates = false;
+          
+          // Check each candidate in our generating list
+          for (const candidateId of [...generatingPolicies]) {
+            const updatedCandidate = result.data.find(c => c.id === candidateId);
+            
+            if (updatedCandidate && updatedCandidate.keyPolicies && updatedCandidate.keyPolicies.length > 0) {
+              console.log("Policies received for candidate:", updatedCandidate.name);
+              // Remove this candidate from our generating list
+              const index = updatedGeneratingPolicies.indexOf(candidateId);
+              if (index > -1) {
+                updatedGeneratingPolicies.splice(index, 1);
+                hasUpdates = true;
+              }
+            }
+          }
+          
+          // Update our generating list if any candidates got their policies
+          if (hasUpdates) {
+            setGeneratingPolicies(updatedGeneratingPolicies);
           }
         });
       }, 2000);
@@ -172,11 +186,11 @@ const CandidateTable = ({
         
         // Auto-generate policies if missing
         if ((!candidate.keyPolicies || candidate.keyPolicies.length === 0) && 
-            generatingPolicies !== candidate.id) {
+            !generatingPolicies.includes(candidate.id)) {
           // Use a bigger delay for policies to avoid API rate limits
           setTimeout(() => {
             console.log(`Auto-generating policies for ${candidate.name}`);
-            setGeneratingPolicies(candidate.id);
+            setGeneratingPolicies(prev => [...prev, candidate.id]);
             
             // Trigger policy generation for this candidate
             fetch(`/api/candidates/${candidate.id}/generate-policies`, {
@@ -188,16 +202,16 @@ const CandidateTable = ({
                 
                 // Set a timeout to clear the loading state after 30 seconds
                 setTimeout(() => {
-                  if (generatingPolicies === candidate.id) {
+                  if (generatingPolicies.includes(candidate.id)) {
                     console.log("Clearing policy generation state after timeout");
-                    setGeneratingPolicies(null);
+                    setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
                     refetchCandidates();
                   }
                 }, 30000);
               })
               .catch((err) => {
                 console.error("Error initiating policy generation:", err);
-                setGeneratingPolicies(null);
+                setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
               });
           }, 2000 + 2000 * Math.random()); // Random delay between 2-4 seconds
         }
@@ -303,10 +317,10 @@ const CandidateTable = ({
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2"
-                  disabled={generatingPolicies === candidate.id}
+                  disabled={generatingPolicies.includes(candidate.id)}
                   onClick={() => {
                     // Set loading state for this candidate
-                    setGeneratingPolicies(candidate.id);
+                    setGeneratingPolicies(prev => [...prev, candidate.id]);
 
                     // Trigger policy regeneration for this candidate
                     fetch(
@@ -323,9 +337,9 @@ const CandidateTable = ({
                         // Set a timeout to clear the loading state after 30 seconds
                         // just in case the polling doesn't detect the changes
                         setTimeout(() => {
-                          if (generatingPolicies === candidate.id) {
+                          if (generatingPolicies.includes(candidate.id)) {
                             console.log("Clearing generation state after timeout");
-                            setGeneratingPolicies(null);
+                            setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
                             // Try one final refresh
                             refetchCandidates();
                           }
@@ -333,11 +347,11 @@ const CandidateTable = ({
                       })
                       .catch((err) => {
                         console.error("Error initiating policy generation:", err);
-                        setGeneratingPolicies(null);
+                        setGeneratingPolicies(prev => prev.filter(id => id !== candidate.id));
                       });
                   }}
                 >
-                  {generatingPolicies === candidate.id ? (
+                  {generatingPolicies.includes(candidate.id) ? (
                     <>
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                       <span className="text-xs">Regenerating...</span>
@@ -355,7 +369,7 @@ const CandidateTable = ({
                   candidate.keyPolicies
                     .slice(0, 3)
                     .map((policy, idx) => <li key={idx}>{policy}</li>)
-                ) : generatingPolicies === candidate.id ? (
+                ) : generatingPolicies.includes(candidate.id) ? (
                   <div className="flex items-center space-x-2 text-xs text-blue-600 ml-[-20px] mt-2">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     <span>Generating policies...</span>
