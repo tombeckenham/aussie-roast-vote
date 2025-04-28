@@ -306,6 +306,66 @@ ${processedContent.substring(0, 300)}...`);
 }
 
 /**
+ * Process raw candidate data from Perplexity and turn it into humorous policy statements
+ * @param candidateName The name of the candidate
+ * @param partyName The name of the party
+ * @param rawData The raw data from Perplexity
+ * @returns Array of humorous policy statements
+ */
+export async function processPolicyPerplexityData(
+  candidateName: string,
+  partyName: string | null,
+  rawData: string,
+): Promise<string[]> {
+  try {
+    console.log(`Processing policy data for ${candidateName} with xAI...`);
+
+    // First extract any policy information from the raw data
+    const extractedPolicies = extractPoliciesFromRawData(rawData);
+    
+    // Create a prompt for processing the raw data into humorous policy statements
+    const prompt = `
+      Create ONE SENTENCE Aussie style summary of ${candidateName}'s 
+      ${partyName ? `(${partyName})` : "(Independent)"} policies using this data. 
+      Really take the piss out of the policies. Make the summary short and sweet.
+      1 sentence is enough. Don't include g'day or any preamble. Just get straight into it.
+      
+      Here's the raw policy data:
+      ${extractedPolicies.length > 0 
+        ? extractedPolicies.join('\n') 
+        : "No specific policy data available. Use the general information below."
+      }
+      
+      Additional context:
+      ${rawData.substring(0, 500)}...`;
+
+    // Make the request to xAI
+    const response = await openai.chat.completions.create({
+      model: "grok-3-beta", // Using the text model
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_tokens: 250,
+      temperature: 0.8,
+    });
+
+    const processedContent = response.choices[0].message.content || 
+      "This drongo's policies are as empty as a pub on Sunday morning.";
+    
+    console.log(`Generated policy summary for ${candidateName}: ${processedContent}`);
+
+    // Format the result as an array of policy statements
+    return [processedContent];
+  } catch (error) {
+    console.error(`Error processing policy data for ${candidateName}:`, error);
+    return ["Policy information unavailable - this pollie's all talk and no action."];
+  }
+}
+
+/**
  * Generate a caricature image of a political candidate using xAI's image generation API
  * @param candidate The candidate object
  * @param description Optional description to enhance the prompt
@@ -496,9 +556,9 @@ export async function generateCandidatePolicies(
   rawData?: string
 ): Promise<string[]> {
   try {
-    console.log(`Generating policy highlights for ${candidate.name}...`);
+    console.log(`Generating policies for ${candidate.name} with Perplexity data`);
 
-    // Default policies based on party
+    // Default policies based on party (fallback if everything else fails)
     const partyName = candidate.partyBallotName || "Independent";
     
     let defaultPolicies: string[] = [];
@@ -535,8 +595,42 @@ export async function generateCandidatePolicies(
       ];
     }
 
-    // STEP 1: Try to extract policies from raw Perplexity data first if available
+    // TWO-STEP PROCESS:
+    // STEP 1: If we have raw Perplexity data, try to create an Aussie-style policy summary first
     if (rawData) {
+      try {
+        // Process the policy data with xAI to get humorous one-sentence summary
+        const aussiePolicySummary = await processPolicyPerplexityData(
+          candidate.name, 
+          candidate.partyBallotName, 
+          rawData
+        );
+        
+        if (aussiePolicySummary.length > 0 && !aussiePolicySummary[0].includes("unavailable")) {
+          console.log(`Generated Aussie policy summary for ${candidate.name}:`, aussiePolicySummary[0]);
+          
+          // STEP 2: Also extract regular policies for context
+          const extractedPolicies = extractPoliciesFromRawData(rawData);
+          
+          // If we have both, combine them - the funny summary first, then some regular policies
+          if (extractedPolicies.length > 0) {
+            return [
+              aussiePolicySummary[0],
+              ...extractedPolicies.slice(0, Math.min(2, extractedPolicies.length))
+            ];
+          }
+          
+          // If we only have the Aussie summary, return it with some default policies
+          return [
+            aussiePolicySummary[0],
+            ...defaultPolicies.slice(0, 2)
+          ];
+        }
+      } catch (error) {
+        console.error(`Error generating Aussie policy summary for ${candidate.name}:`, error);
+      }
+      
+      // Fallback: Try to extract standard policies if the summary generation failed
       const extractedPolicies = extractPoliciesFromRawData(rawData);
       if (extractedPolicies.length > 0) {
         console.log(`Using extracted policies from Perplexity data for ${candidate.name}:`, extractedPolicies);
@@ -544,7 +638,7 @@ export async function generateCandidatePolicies(
       }
     }
 
-    // STEP 2: If no raw data or extraction failed, use xAI to generate policies
+    // STEP 3: If no raw data, extraction failed, or xAI processing failed, use standard xAI policy generation
     console.log(`No policies extracted from raw data, generating with xAI for ${candidate.name}`);
     
     // Create a prompt for policy generation with short timeout
@@ -570,7 +664,7 @@ export async function generateCandidatePolicies(
       setTimeout(() => {
         console.log(`Policy generation timed out for ${candidate.name}, using defaults`);
         resolve(defaultPolicies);
-      }, 5000); // 5 second timeout
+      }, 8000); // 8 second timeout (increased from 5 seconds)
     });
 
     // The actual API call promise
@@ -623,6 +717,7 @@ export default {
   answerCandidateQuestion,
   generateCampaignActivities,
   processCandidatePerplexityData,
+  processPolicyPerplexityData,
   generateCaricatureImage,
   generateCandidatePolicies,
 };
