@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Building2, MapPin, PartyPopper, Star, User } from "lucide-react";
@@ -36,14 +43,18 @@ const PopularSeats = () => {
     queryKey: ["/api/seats/mackellar"],
   });
 
-  const isLoading = grayndlerQuery.isLoading || dicksonQuery.isLoading || mackellarQuery.isLoading;
-  const hasError = grayndlerQuery.error || dicksonQuery.error || mackellarQuery.error;
+  const isLoading =
+    grayndlerQuery.isLoading ||
+    dicksonQuery.isLoading ||
+    mackellarQuery.isLoading;
+  const hasError =
+    grayndlerQuery.error || dicksonQuery.error || mackellarQuery.error;
 
   // Combine the featured seats
   const featuredSeats = [
     grayndlerQuery.data,
     dicksonQuery.data,
-    mackellarQuery.data
+    mackellarQuery.data,
   ].filter(Boolean) as ElectoralSeat[];
 
   const handleViewSeat = (slug: string) => {
@@ -55,7 +66,9 @@ const PopularSeats = () => {
       <section className="py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="mb-6 text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Popular Electorates</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Popular Electorates
+            </h2>
             <div className="text-gray-600 max-w-2xl mx-auto">
               <Skeleton className="h-4 w-full mb-2" />
               <Skeleton className="h-4 w-4/5 mx-auto" />
@@ -97,10 +110,9 @@ const PopularSeats = () => {
     <section className="py-8 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="mb-6 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Popular Electorates</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Key electorates represented by prominent members of parliament in the current federal government.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Popular Electorates
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -121,10 +133,10 @@ const PopularSeats = () => {
               <CardContent>
                 <div className="flex items-center space-x-3 mb-3">
                   <Avatar className="h-14 w-14 border-2 border-aussie-green overflow-hidden">
-                    <AvatarImage 
-                      src={seat.currentMpPhotoUrl} 
+                    <AvatarImage
+                      src={seat.currentMpPhotoUrl}
                       alt={seat.currentMp}
-                      className="object-cover aspect-square" 
+                      className="object-cover aspect-square"
                     />
                     <AvatarFallback>
                       <User size={24} />
@@ -144,8 +156,8 @@ const PopularSeats = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button 
-                  variant="default" 
+                <Button
+                  variant="default"
                   className="w-full bg-aussie-green hover:bg-aussie-green/90"
                   onClick={() => handleViewSeat(seat.slug)}
                 >

@@ -157,16 +157,49 @@ const CandidateTable = ({
     }
   };
 
-  // Auto-generate caricatures for any candidates that don't have them
+  // Auto-generate caricatures and policies for any candidates that don't have them
   useEffect(() => {
     if (candidates && !isLoading) {
       candidates.forEach((candidate) => {
+        // Auto-generate caricatures if missing
         if (!candidate.imageUrl && generatingCaricature !== candidate.id) {
           // Delay each caricature generation to avoid overloading the server
           setTimeout(() => {
             console.log(`Auto-generating caricature for ${candidate.name}`);
             generateCaricatureMutation.mutate(candidate.id);
           }, 1000 * Math.random()); // Random delay between 0-1000ms
+        }
+        
+        // Auto-generate policies if missing
+        if ((!candidate.keyPolicies || candidate.keyPolicies.length === 0) && 
+            generatingPolicies !== candidate.id) {
+          // Use a bigger delay for policies to avoid API rate limits
+          setTimeout(() => {
+            console.log(`Auto-generating policies for ${candidate.name}`);
+            setGeneratingPolicies(candidate.id);
+            
+            // Trigger policy generation for this candidate
+            fetch(`/api/candidates/${candidate.id}/generate-policies`, {
+              method: "POST",
+            })
+              .then(() => {
+                console.log("Policy generation initiated for:", candidate.name);
+                refetchCandidates();
+                
+                // Set a timeout to clear the loading state after 30 seconds
+                setTimeout(() => {
+                  if (generatingPolicies === candidate.id) {
+                    console.log("Clearing policy generation state after timeout");
+                    setGeneratingPolicies(null);
+                    refetchCandidates();
+                  }
+                }, 30000);
+              })
+              .catch((err) => {
+                console.error("Error initiating policy generation:", err);
+                setGeneratingPolicies(null);
+              });
+          }, 2000 + 2000 * Math.random()); // Random delay between 2-4 seconds
         }
       });
     }
@@ -322,10 +355,15 @@ const CandidateTable = ({
                   candidate.keyPolicies
                     .slice(0, 3)
                     .map((policy, idx) => <li key={idx}>{policy}</li>)
+                ) : generatingPolicies === candidate.id ? (
+                  <div className="flex items-center space-x-2 text-xs text-blue-600 ml-[-20px] mt-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Generating policies...</span>
+                  </div>
                 ) : (
                   <>
                     <li>Policy information unavailable</li>
-                    <li>We're gathering policy details</li>
+                    <li>Policies will be generated automatically</li>
                   </>
                 )}
               </ul>
