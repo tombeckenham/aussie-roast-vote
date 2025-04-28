@@ -120,8 +120,12 @@ const PopularSeats = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center space-x-3 mb-3">
-                  <Avatar className="h-14 w-14 border-2 border-aussie-green">
-                    <AvatarImage src={seat.currentMpPhotoUrl} alt={seat.currentMp} />
+                  <Avatar className="h-14 w-14 border-2 border-aussie-green overflow-hidden">
+                    <AvatarImage 
+                      src={seat.currentMpPhotoUrl} 
+                      alt={seat.currentMp}
+                      className="object-cover aspect-square" 
+                    />
                     <AvatarFallback>
                       <User size={24} />
                     </AvatarFallback>
