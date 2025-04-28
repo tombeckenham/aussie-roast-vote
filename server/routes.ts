@@ -709,6 +709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/candidates/:id/generate-policies", async (req: Request, res: Response) => {
     try {
       const candidateId = parseInt(req.params.id, 10);
+      const forceRegenerate = req.query.force === 'true';
 
       if (isNaN(candidateId)) {
         return res.status(400).json({ message: "Invalid candidate ID" });
@@ -718,6 +719,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!candidate) {
         return res.status(404).json({ message: "Candidate not found" });
       }
+      
+      // Log the regeneration request
+      console.log(`Policy regeneration requested for ${candidate.name}${forceRegenerate ? ' (forced)' : ''}`);
+      
 
       // If candidate already has policies, return them unless force=true is specified
       if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && req.query.force !== 'true') {
