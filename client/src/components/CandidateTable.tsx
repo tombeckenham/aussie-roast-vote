@@ -76,15 +76,29 @@ const CandidateTable = ({
     if (generatingPolicies !== null) {
       console.log("Starting polling for updated candidate data...");
       
-      // Poll every 1.5 seconds while generating policies
+      // Initial refresh immediately
+      refetchCandidates();
+      
+      // Poll every 2 seconds while generating policies
       interval = setInterval(() => {
         console.log("Polling for updated candidate data...");
-        refetchCandidates();
-      }, 1500);
+        refetchCandidates().then(result => {
+          // Check if the candidate we're waiting for now has policies
+          const candidateId = generatingPolicies;
+          const updatedCandidate = result.data?.find(c => c.id === candidateId);
+          
+          if (updatedCandidate && updatedCandidate.keyPolicies && updatedCandidate.keyPolicies.length > 0) {
+            console.log("Policies received for candidate:", updatedCandidate.name);
+            // Stop loading state and polling
+            setGeneratingPolicies(null);
+          }
+        });
+      }, 2000);
     }
     
     return () => {
       if (interval !== null) {
+        console.log("Clearing polling interval");
         clearInterval(interval);
       }
     };
@@ -269,13 +283,23 @@ const CandidateTable = ({
                       },
                     )
                       .then(() => {
-                        // Invalidate the candidate query to refresh the data
-                        queryClient.invalidateQueries({
-                          queryKey: [`/api/seats/${seatId}/candidates`],
-                        });
-                        setGeneratingPolicies(null);
+                        console.log("Policy generation initiated for:", candidate.name);
+                        // Start polling by immediately refreshing data
+                        refetchCandidates();
+                        
+                        // Set a timeout to clear the loading state after 30 seconds
+                        // just in case the polling doesn't detect the changes
+                        setTimeout(() => {
+                          if (generatingPolicies === candidate.id) {
+                            console.log("Clearing generation state after timeout");
+                            setGeneratingPolicies(null);
+                            // Try one final refresh
+                            refetchCandidates();
+                          }
+                        }, 30000);
                       })
-                      .catch(() => {
+                      .catch((err) => {
+                        console.error("Error initiating policy generation:", err);
                         setGeneratingPolicies(null);
                       });
                   }}
