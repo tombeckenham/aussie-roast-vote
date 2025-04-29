@@ -337,14 +337,17 @@ const CandidateTable = ({
               <div className="flex justify-between mb-2">
                 <div className="flex items-center">
                   <Avatar className="h-20 w-20 mr-3">
-                    {/* Log image URL for debugging */}
-                    {candidate.imageUrl && console.log(`Image URL for ${candidate.name}:`, candidate.imageUrl)}
+                    {/* Removed debugging console logs that clutter the console */}
                     
                     <AvatarImage
-                      src={candidate.imageUrl || ""}
+                      src={candidate.imageUrl}
                       alt={candidate.name}
                       className="object-cover"
                       data-candidate-id={candidate.id}
+                      onError={(e) => {
+                        console.error(`Image load error for ${candidate.name}: ${candidate.imageUrl}`);
+                        // Only log the error, don't try to modify the image src directly
+                      }}
                     />
                     <AvatarFallback>
                       <User size={32} />

@@ -593,12 +593,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get candidate through storage interface
       const storageCandidate = await storage.getCandidateById(candidateId);
       
-      // See both results
+      // See both results with detailed analysis of the image URL property
       res.json({
         rawFromDb: rawCandidate,
         fromStorage: storageCandidate,
         imageUrlFromRaw: rawCandidate?.imageUrl,
         imageUrlFromStorage: storageCandidate?.imageUrl,
+        image_url_column: rawCandidate?.['image_url'], // Check for snake_case version using bracket notation
+        rawKeys: Object.keys(rawCandidate || {}),
+        storageKeys: Object.keys(storageCandidate || {}),
+        debugInfo: {
+          imageUrlExists: !!storageCandidate?.imageUrl,
+          imageUrlValue: storageCandidate?.imageUrl,
+          imageUrlType: typeof storageCandidate?.imageUrl,
+        }
       });
     } catch (error) {
       console.error("Error fetching candidate for debugging:", error);
