@@ -166,6 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const seatId = parseInt(req.params.seatId, 10);
+        const forceRegenerate = req.query.force === 'true';
 
         if (isNaN(seatId)) {
           return res.status(400).json({ message: "Invalid seat ID" });
@@ -183,6 +184,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res
             .status(404)
             .json({ message: "No candidates found for this seat" });
+        }
+        
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
+        
+        // Rate limit check for seat-wide operations
+        // We'll use the seat ID as the candidate ID for tracking commentary generation for the whole seat
+        if (!forceRegenerate) {
+          const isAllowed = rateLimiter.isOperationAllowed(seatId, 'commentary', forceRegenerate);
+          if (!isAllowed) {
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(seatId, 'commentary');
+            console.log(`Rate limited: Commentary generation for ${seat.name} was performed recently. Next available in ${timeRemaining}`);
+            return res.status(429).json({
+              message: `Commentary generation for this seat is rate limited. Try again in ${timeRemaining}.`,
+              timeRemaining
+            });
+          }
+          
+          // Record the operation for the seat
+          rateLimiter.recordOperation(seatId, 'commentary');
         }
 
         console.log(
@@ -436,6 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const candidateId = parseInt(req.params.id, 10);
+        const forceRegenerate = req.query.force === 'true';
 
         if (isNaN(candidateId)) {
           return res.status(400).json({ message: "Invalid candidate ID" });
@@ -444,6 +466,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const candidate = await storage.getCandidateById(candidateId);
         if (!candidate) {
           return res.status(404).json({ message: "Candidate not found" });
+        }
+        
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
+        
+        // Check if operation is allowed based on rate limiting
+        if (!forceRegenerate) {
+          const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'caricature', forceRegenerate);
+          if (!isAllowed) {
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'caricature');
+            console.log(`Rate limited: Caricature generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`);
+            return res.status(429).json({
+              message: `Caricature generation for this candidate is rate limited. Try again in ${timeRemaining}.`,
+              timeRemaining
+            });
+          }
+          
+          // Record the operation
+          rateLimiter.recordOperation(candidateId, 'caricature');
         }
 
         // Import the necessary service
@@ -577,6 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const candidateId = parseInt(req.params.id, 10);
+        const forceRegenerate = req.query.force === 'true';
 
         if (isNaN(candidateId)) {
           return res.status(400).json({ message: "Invalid candidate ID" });
@@ -585,6 +627,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const candidate = await storage.getCandidateById(candidateId);
         if (!candidate) {
           return res.status(404).json({ message: "Candidate not found" });
+        }
+        
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
+        
+        // Check if operation is allowed based on rate limiting
+        if (!forceRegenerate) {
+          const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'commentary', forceRegenerate);
+          if (!isAllowed) {
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'commentary');
+            console.log(`Rate limited: Commentary regeneration for ${candidate.name} was performed recently. Next available in ${timeRemaining}`);
+            return res.status(429).json({
+              message: `Commentary regeneration for this candidate is rate limited. Try again in ${timeRemaining}.`,
+              timeRemaining
+            });
+          }
+          
+          // Record the operation
+          rateLimiter.recordOperation(candidateId, 'commentary');
         }
 
         // Get existing roast to delete
@@ -720,6 +781,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Candidate not found" });
       }
       
+      // Import rate limiter
+      const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
+      
+      // Check if operation is allowed based on rate limiting
+      const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'policies', forceRegenerate);
+      if (!isAllowed) {
+        const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'policies');
+        console.log(`Rate limited: Policy generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`);
+        return res.status(429).json({
+          message: `Policy generation for this candidate is rate limited. Try again in ${timeRemaining}.`,
+          timeRemaining
+        });
+      }
+      
       // Log the regeneration request
       console.log(`Policy regeneration requested for ${candidate.name}${forceRegenerate ? ' (forced)' : ''}`);
       
@@ -741,6 +816,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Generating policies for candidate ${candidate.name}...`);
+      
+      // Record the operation is happening (before we respond to the client)
+      rateLimiter.recordOperation(candidateId, 'policies');
       
       // Always respond immediately to the client and continue processing in background
       res.json({
@@ -809,6 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/seats/:seatId/generate-policies", async (req: Request, res: Response) => {
     try {
       const seatId = parseInt(req.params.seatId, 10);
+      const forceRegenerate = req.query.force === 'true';
 
       if (isNaN(seatId)) {
         return res.status(400).json({ message: "Invalid seat ID" });
@@ -824,6 +903,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (candidates.length === 0) {
         return res.status(404).json({ message: "No candidates found for this seat" });
+      }
+      
+      // Import rate limiter
+      const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
+      
+      // Rate limit check for seat-wide operations
+      // We'll use the seat ID to track policy generation for the whole seat
+      if (!forceRegenerate) {
+        const isAllowed = rateLimiter.isOperationAllowed(seatId, 'policies', forceRegenerate);
+        if (!isAllowed) {
+          const timeRemaining = rateLimiter.getTimeRemainingFormatted(seatId, 'policies');
+          console.log(`Rate limited: Policy generation for ${seat.name} was performed recently. Next available in ${timeRemaining}`);
+          return res.status(429).json({
+            message: `Policy generation for this seat is rate limited. Try again in ${timeRemaining}.`,
+            timeRemaining
+          });
+        }
+        
+        // Record the operation for the seat
+        rateLimiter.recordOperation(seatId, 'policies');
       }
 
       console.log(`Generating policies for all ${candidates.length} candidates in ${seat.name}...`);
@@ -935,6 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/candidates/:id/ask", async (req: Request, res: Response) => {
     try {
       const candidateId = parseInt(req.params.id, 10);
+      const forceRegenerate = req.query.force === 'true';
 
       if (isNaN(candidateId)) {
         return res.status(400).json({ message: "Invalid candidate ID" });
@@ -955,6 +1055,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { question } = parsedBody.data;
+      
+      // Import rate limiter
+      const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
+      
+      // Check if operation is allowed based on rate limiting
+      if (!forceRegenerate) {
+        const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'qa', forceRegenerate);
+        if (!isAllowed) {
+          const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'qa');
+          console.log(`Rate limited: Q&A for candidate ID ${candidateId} was performed recently. Next available in ${timeRemaining}`);
+          return res.status(429).json({
+            message: `Q&A for this candidate is rate limited. Try again in ${timeRemaining}.`,
+            timeRemaining
+          });
+        }
+        
+        // Record the operation
+        rateLimiter.recordOperation(candidateId, 'qa');
+      }
 
       // Fetch candidate
       const candidate = await storage.getCandidateById(candidateId);
