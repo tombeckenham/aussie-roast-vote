@@ -11,6 +11,7 @@ import { db } from "../db";
 import { candidates } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import fetch from "node-fetch";
+import { storage } from "server/storage";
 
 // Initialize the OpenAI client with x.ai base URL and API key
 const openai = new OpenAI({
@@ -26,52 +27,80 @@ const openai = new OpenAI({
 export async function generateCandidateCaricature(
   candidate: Candidate,
 ): Promise<string> {
-  try {
-    console.log(`Generating caricature for ${candidate.name}...`);
+  
+     // Create a shorter prompt for xAI that stays within character limits
+     const policyStr = candidate.keyPolicies && candidate.keyPolicies.length > 0
+     ? `Key policies: ${candidate.keyPolicies.slice(0, 1).join(", ")}.`
+     : "";
 
-    // Create a prompt describing the candidate and the style of caricature
-    const prompt = `
-      Create a political caricature image of Australian politician ${candidate.name} 
-      from the ${candidate.partyBallotName || "Independent"} party.
-      
-      The caricature should be:
-      - Exaggerated in classic political cartoon style
-      - Humorous but not offensive
-      - Recognizably the person but with their prominent features emphasized
-      - With Australian-themed elements in the background or outfit
-      - With bright colors and a clean style
-      
-      Include props or elements that represent their political party.
-      The image should have a white background and be centered.
-    `;
+   let enhancedPrompt = `Australian political cartoon of ${candidate.name} (${candidate.partyBallotName || "Independent"}). ${policyStr} ${candidate.isIncumbent ? "Current MP." : ""} Style: Exaggerated features, bright colors, clean lines. Include: Australian elements (cork hat/flag/kangaroo/koala), satirical elements, political humor based on stance. White background.`.trim();
 
-    // Make the request to xAI's vision model
-    const response = await openai.chat.completions.create({
-      model: "grok-2-vision-1212", // Use the vision model
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_tokens: 4000,
-      response_format: { type: "text" },
-    });
+   // Before sending the request, check and log the prompt length
+   console.log(`Prompt length: ${enhancedPrompt.length} characters`);
+   if (enhancedPrompt.length > 1000) {
+     console.log("Warning: Prompt approaching maximum length, truncating...");
+     enhancedPrompt = enhancedPrompt.substring(0, 1000);
+   }
 
-    // This will return a text description rather than an image
-    // In a production app, you would need to use a different approach
-    console.log("Generated caricature description for: " + candidate.name);
-    const content = response.choices[0].message.content;
-    return content
-      ? content
-      : "Failed to generate a caricature description. Please try again later.";
+   // Make a direct fetch to the xAI API (without using any 'size' parameter)
+   const response = await fetch("https://api.x.ai/v1/images/generations", {
+     method: "POST",
+     headers: {
+       "Content-Type": "application/json",
+       Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+     },
+     body: JSON.stringify({
+       prompt: enhancedPrompt,
+       model: "grok-2-image", // Using the latest model for image generation
+       n: 1,
+     }),
+   });
 
-    // Note: The actual image generation would require using a different API
-    // or configuring Grok differently. For now, we're returning the text description.
-  } catch (error) {
-    console.error(`Error generating caricature for ${candidate.name}:`, error);
-    return "Error generating caricature. The AI service may be temporarily unavailable.";
-  }
+   if (!response.ok) {
+     console.error(
+       `xAI image generation failed with status: ${response.status}`,
+     );
+     const errorData = await response.json();
+     console.error("Error details:", errorData);
+     throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
+   }
+
+   const data = await response.json();
+    // Type guard to check if response data has the expected structure
+    if (
+      data &&
+      typeof data === "object" &&
+      'data' in data && Array.isArray(data.data) &&
+      data.data.length > 0 &&
+      typeof data.data[0].url === "string"
+    ) {
+      console.log(
+        `Successfully generated caricature image for ${candidate.name} using xAI`,
+      );
+
+      // Fetch the image from the URL and store it in the database
+      let base64Image = null;
+      try {
+        const imageUrl = data.data[0].url;
+        await storage.updateCandidateImage(candidate.id, imageUrl); // Store the image URL
+
+        const imageResponse = await fetch(imageUrl);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        base64Image = Buffer.from(imageBuffer).toString("base64");
+      } catch (fetchOrStoreError) {
+        console.error(
+          `Error fetching or storing image for ${candidate.name}:`,
+          fetchOrStoreError,
+        );
+        throw new Error( "Failed to fetch or store generated image" );
+      }
+
+      // Return image data in the response
+      return base64Image
+    } else {
+      throw new Error( "Failed to generate caricature" );
+    }
+    
 }
 
 /**

@@ -191,6 +191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rateLimiter = await import("./services/rateLimiter").then(
           (m) => m.default,
         );
+        console.log("generate-commentaries - forceRegenerate", forceRegenerate);
 
         // Rate limit check for seat-wide operations
         // We'll use the seat ID as the candidate ID for tracking commentary generation for the whole seat
@@ -518,98 +519,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Import the necessary service
         const { default: xaiService } = await import("./services/xaiService");
-
         console.log(
           `Generating caricature for candidate ${candidate.name} using xAI API...`,
         );
+        const base64Image = await xaiService.generateCandidateCaricature(candidate);
+     
 
-        // Create a shorter prompt for xAI that stays within character limits
-        const policyStr = candidate.keyPolicies && candidate.keyPolicies.length > 0
-          ? `Key policies: ${candidate.keyPolicies.slice(0, 1).join(", ")}.`
-          : "";
-
-        let enhancedPrompt = `Australian political cartoon of ${candidate.name} (${candidate.partyBallotName || "Independent"}). ${policyStr} ${candidate.isIncumbent ? "Current MP." : ""} Style: Exaggerated features, bright colors, clean lines. Include: Australian elements (cork hat/flag/kangaroo/koala), satirical elements, political humor based on stance. White background.`.trim();
-
-        // Before sending the request, check and log the prompt length
-        console.log(`Prompt length: ${enhancedPrompt.length} characters`);
-        if (enhancedPrompt.length > 1000) {
-          console.log("Warning: Prompt approaching maximum length, truncating...");
-          enhancedPrompt = enhancedPrompt.substring(0, 1000);
-        }
-
-        // Make a direct fetch to the xAI API (without using any 'size' parameter)
-        const response = await fetch("https://api.x.ai/v1/images/generations", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            prompt: enhancedPrompt,
-            model: "grok-2-image", // Using the latest model for image generation
-            n: 1,
-          }),
+        res.json({
+          candidateId,
+          name: candidate.name,
+          description: "", // Not generating description anymore
+          imageData: base64Image,
         });
 
-        if (!response.ok) {
-          console.error(
-            `xAI image generation failed with status: ${response.status}`,
-          );
-          const errorData = await response.json();
-          console.error("Error details:", errorData);
-          throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
-        }
-
-        const data = await response.json();
-
-        // Type guard to check if response data has the expected structure
-        if (
-          data &&
-          typeof data === "object" &&
-          Array.isArray(data.data) &&
-          data.data.length > 0 &&
-          typeof data.data[0].url === "string"
-        ) {
-          console.log(
-            `Successfully generated caricature image for ${candidate.name} using xAI`,
-          );
-
-          // Fetch the image from the URL and store it in the database
-          let base64Image = null;
-          try {
-            const imageUrl = data.data[0].url;
-            await storage.updateCandidateImage(candidate.id, imageUrl); // Store the image URL
-
-            const imageResponse = await fetch(imageUrl);
-            const imageBuffer = await imageResponse.arrayBuffer();
-            base64Image = Buffer.from(imageBuffer).toString("base64");
-          } catch (fetchOrStoreError) {
-            console.error(
-              `Error fetching or storing image for ${candidate.name}:`,
-              fetchOrStoreError,
-            );
-            res
-              .status(500)
-              .json({ message: "Failed to fetch or store generated image" });
-            return;
-          }
-
-          // Return image data in the response
-          res.json({
-            candidateId,
-            name: candidate.name,
-            description: "", // Not generating description anymore
-            imageData: base64Image,
-          });
-        } else {
-          console.error(
-            `No valid image URL returned for ${candidate.name} from xAI:`,
-            data,
-          );
-          res
-            .status(500)
-            .json({ message: "Failed to generate image (invalid response)" });
-        }
+       
       } catch (error) {
         console.error("Error generating caricature:", error);
         res.status(500).json({ message: "Failed to generate caricature" });

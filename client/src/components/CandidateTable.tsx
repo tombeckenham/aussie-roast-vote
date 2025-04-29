@@ -145,7 +145,7 @@ const CandidateTable = ({
     mutationFn: async (candidateId: number) => {
       setGeneratingCaricature(candidateId);
       const response = await fetch(
-        `/api/candidates/${candidateId}/caricature`,
+        `/api/candidates/${candidateId}/caricature?force=true`,
         {
           method: "POST",
         },
@@ -169,9 +169,28 @@ const CandidateTable = ({
       }
     },
     onSuccess: (data) => {
+      // Update the image in the UI immediately if we have base64 image data
+      if (data.imageData) {
+        // Update local candidates state to display the new image immediately
+        const updatedCandidates = candidates?.map(c => {
+          if (c.id === data.candidateId) {
+            // Create a data URL from the base64 string
+            const imageUrl = `data:image/png;base64,${data.imageData}`;
+            return {...c, imageUrl};
+          }
+          return c;
+        });
+        
+        // Update the query cache with new image URL
+        queryClient.setQueryData([`/api/seats/${seatId}/candidates`], updatedCandidates);
+      }
+      
       // Invalidate the candidate query to refresh the data
       queryClient.invalidateQueries({
         queryKey: [`/api/candidates/${data.candidateId}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/seats/${seatId}/candidates`],
       });
       setGeneratingCaricature(null);
     },
@@ -222,7 +241,7 @@ const CandidateTable = ({
               setGeneratingPolicies((prev) => [...prev, candidate.id]);
 
               // Trigger policy generation for this candidate
-              fetch(`/api/candidates/${candidate.id}/generate-policies`, {
+              fetch(`/api/candidates/${candidate.id}/generate-policies?force=true`, {
                 method: "POST",
               })
                 .then(async (response) => {
@@ -329,6 +348,7 @@ const CandidateTable = ({
                       src={candidate.imageUrl || ""}
                       alt={candidate.name}
                       className="object-cover"
+                      data-candidate-id={candidate.id}
                     />
                     <AvatarFallback>
                       <User size={32} />
@@ -496,15 +516,15 @@ const CandidateTable = ({
                     onClick={() => {
                       // Only need to trigger a regeneration of this specific candidate on the server
                       fetch(
-                        `/api/candidates/${candidate.id}/regenerate-commentary`,
+                        `/api/candidates/${candidate.id}/regenerate-commentary?force=true`,
                         {
                           method: "POST",
                         },
                       )
                         .then(async (response) => {
                           if (response.ok) {
-                            // Force a refresh of the commentaries
-                            refetchCommentaries();
+                            // Force a refresh of the candidate data
+                            refetchCandidates();
                           } else if (response.status === 429) {
                             // Handle rate limit error
                             const errorData = await response.json();
