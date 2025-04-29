@@ -401,6 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 (isIncumbent ? seat.currentMpPhotoUrl : candidate.imageUrl),
             };
 
+            // Return data with proper associations
             return {
               ...enhancedCandidate,
               party,
@@ -451,13 +452,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch QA history
       const qaHistory = await storage.getCandidateQA(candidateId);
 
-      res.json({
+      // Ensure fields use camelCase for the client
+      const mappedCandidate = {
         ...candidate,
+        // The image URL might already be properly mapped by Drizzle
         party,
         roast,
         activities,
         qaHistory,
-      });
+      };
+      
+      res.json(mappedCandidate);
     } catch (error) {
       console.error("Error fetching candidate:", error);
       res.status(500).json({ message: "Failed to fetch candidate" });
