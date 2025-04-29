@@ -126,10 +126,10 @@ async function migrateAllImages() {
       return;
     }
     
-    // Process in batches (continue from offset 50)
-    let offset = 50;
-    let processedCount = 0;
-    let batchCount = 0;
+    // Continue from where we left off (approximately batch 11)
+    let offset = 275;
+    let processedCount = 275; // We've processed about 275 images in previous batches
+    let batchCount = 11;
     
     while (true) {
       const processedInBatch = await processBatch(offset);
