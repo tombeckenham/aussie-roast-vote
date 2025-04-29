@@ -364,8 +364,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const candidates = await storage.getCandidatesByElectoralSeat(seatId);
 
         // Fetch party data for each candidate
+        // Log for debugging
+        console.log("First candidate raw data:", candidates[0]);
+        
         const candidatesWithParty = await Promise.all(
           candidates.map(async (candidate) => {
+            // Log for debugging
+            console.log(`Processing candidate ${candidate.name}, imageUrl: ${candidate.imageUrl}`);
+            
             let party = null;
             if (candidate.partyId) {
               party = await storage.getPartyById(candidate.partyId);
@@ -432,6 +438,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!candidate) {
         return res.status(404).json({ message: "Candidate not found" });
       }
+      
+      // Log for debugging
+      console.log("Detail view - candidate raw data:", candidate);
+      console.log("Detail view - candidate.imageUrl:", candidate.imageUrl);
 
       // Ensure roast and activities exist
       await generateCandidateData(candidateId);
