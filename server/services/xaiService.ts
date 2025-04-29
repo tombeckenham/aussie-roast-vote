@@ -78,12 +78,25 @@ export async function generateCandidateCaricature(
         `Successfully generated caricature image for ${candidate.name} using xAI`,
       );
 
-      // Fetch the image from the URL and store it in the database
+      // Fetch the image from the URL and store it in Replit storage
       let base64Image = null;
       try {
         const imageUrl = data.data[0].url;
-        await storage.updateCandidateImage(candidate.id, imageUrl); // Store the image URL
-
+        
+        // Import the Replit storage service
+        const replitStorageService = await import("./replitStorageService").then(m => m.default);
+        
+        // Save the image to Replit storage and get the local URL
+        const localImageUrl = await replitStorageService.saveImageFromUrl(
+          imageUrl,
+          candidate.id,
+          candidate.surname
+        );
+        
+        // Update the database with the local URL
+        await storage.updateCandidateImage(candidate.id, localImageUrl);
+        
+        // Also fetch the image as base64 for the response
         const imageResponse = await fetch(imageUrl);
         const imageBuffer = await imageResponse.arrayBuffer();
         base64Image = Buffer.from(imageBuffer).toString("base64");

@@ -7,8 +7,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Base URL for accessing images in Replit object storage
-const STORAGE_URL = 'https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/storage';
+// We'll use the relative path for accessing images in Replit storage
+const STORAGE_PATH = '/storage';
 
 /**
  * Save a base64 image to Replit object storage and return the public URL
