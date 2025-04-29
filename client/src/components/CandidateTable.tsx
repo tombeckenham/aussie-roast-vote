@@ -5,6 +5,7 @@ import { ChevronRight, User, Loader2, RefreshCw, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -48,6 +49,7 @@ const CandidateTable = ({
   isGeneratingCommentary = false,
 }: CandidateTableProps) => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [generatingCaricature, setGeneratingCaricature] = useState<
     number | null
   >(null);
@@ -208,25 +210,39 @@ const CandidateTable = ({
               fetch(`/api/candidates/${candidate.id}/generate-policies`, {
                 method: "POST",
               })
-                .then(() => {
-                  console.log(
-                    "Policy generation initiated for:",
-                    candidate.name,
-                  );
-                  refetchCandidates();
+                .then(async (response) => {
+                  if (response.ok) {
+                    console.log(
+                      "Policy generation initiated for:",
+                      candidate.name,
+                    );
+                    refetchCandidates();
 
-                  // Set a timeout to clear the loading state after 30 seconds
-                  setTimeout(() => {
-                    if (generatingPolicies.includes(candidate.id)) {
-                      console.log(
-                        "Clearing policy generation state after timeout",
-                      );
-                      setGeneratingPolicies((prev) =>
-                        prev.filter((id) => id !== candidate.id),
-                      );
-                      refetchCandidates();
-                    }
-                  }, 30000);
+                    // Set a timeout to clear the loading state after 30 seconds
+                    setTimeout(() => {
+                      if (generatingPolicies.includes(candidate.id)) {
+                        console.log(
+                          "Clearing policy generation state after timeout",
+                        );
+                        setGeneratingPolicies((prev) =>
+                          prev.filter((id) => id !== candidate.id),
+                        );
+                        refetchCandidates();
+                      }
+                    }, 30000);
+                  } else if (response.status === 429) {
+                    // This is a rate limit error, but for auto-generation we'll silently fail
+                    // so we don't overwhelm the user with notifications
+                    const errorData = await response.json();
+                    console.log(`Rate limited for ${candidate.name}: ${errorData.message}`);
+                    
+                    // Just clear the loading state
+                    setGeneratingPolicies((prev) =>
+                      prev.filter((id) => id !== candidate.id),
+                    );
+                  } else {
+                    throw new Error(`Server returned ${response.status}`);
+                  }
                 })
                 .catch((err) => {
                   console.error("Error initiating policy generation:", err);
@@ -352,34 +368,62 @@ const CandidateTable = ({
                         method: "POST",
                       },
                     )
-                      .then(() => {
-                        console.log(
-                          "Policy generation initiated for:",
-                          candidate.name,
-                        );
-                        // Start polling by immediately refreshing data
-                        refetchCandidates();
+                      .then(async (response) => {
+                        if (response.ok) {
+                          console.log(
+                            "Policy generation initiated for:",
+                            candidate.name,
+                          );
+                          // Start polling by immediately refreshing data
+                          refetchCandidates();
 
-                        // Set a timeout to clear the loading state after 30 seconds
-                        // just in case the polling doesn't detect the changes
-                        setTimeout(() => {
-                          if (generatingPolicies.includes(candidate.id)) {
-                            console.log(
-                              "Clearing generation state after timeout",
-                            );
-                            setGeneratingPolicies((prev) =>
-                              prev.filter((id) => id !== candidate.id),
-                            );
-                            // Try one final refresh
-                            refetchCandidates();
-                          }
-                        }, 30000);
+                          // Set a timeout to clear the loading state after 30 seconds
+                          // just in case the polling doesn't detect the changes
+                          setTimeout(() => {
+                            if (generatingPolicies.includes(candidate.id)) {
+                              console.log(
+                                "Clearing generation state after timeout",
+                              );
+                              setGeneratingPolicies((prev) =>
+                                prev.filter((id) => id !== candidate.id),
+                              );
+                              // Try one final refresh
+                              refetchCandidates();
+                            }
+                          }, 30000);
+                        } else if (response.status === 429) {
+                          // Handle rate limit error
+                          const errorData = await response.json();
+                          console.log("Rate limited:", errorData.message);
+                          
+                          // Show toast notification with rate limit message
+                          toast({
+                            title: "Rate limited",
+                            description: errorData.message || "This operation is rate limited. Please try again later.",
+                            variant: "destructive",
+                          });
+                          
+                          // Clear loading state
+                          setGeneratingPolicies((prev) =>
+                            prev.filter((id) => id !== candidate.id),
+                          );
+                        } else {
+                          throw new Error(`Server returned ${response.status}`);
+                        }
                       })
                       .catch((err) => {
                         console.error(
                           "Error initiating policy generation:",
                           err,
                         );
+                        
+                        // Show error toast
+                        toast({
+                          title: "Generation failed",
+                          description: "Failed to generate policies. Please try again later.",
+                          variant: "destructive",
+                        });
+                        
                         setGeneratingPolicies((prev) =>
                           prev.filter((id) => id !== candidate.id),
                         );
@@ -436,10 +480,36 @@ const CandidateTable = ({
                         {
                           method: "POST",
                         },
-                      ).then(() => {
-                        // Force a refresh of the commentaries
-                        refetchCommentaries();
-                      });
+                      )
+                        .then(async (response) => {
+                          if (response.ok) {
+                            // Force a refresh of the commentaries
+                            refetchCommentaries();
+                          } else if (response.status === 429) {
+                            // Handle rate limit error
+                            const errorData = await response.json();
+                            console.log("Rate limited:", errorData.message);
+                            
+                            // Show toast notification with rate limit message
+                            toast({
+                              title: "Rate limited",
+                              description: errorData.message || "This operation is rate limited. Please try again later.",
+                              variant: "destructive",
+                            });
+                          } else {
+                            throw new Error(`Server returned ${response.status}`);
+                          }
+                        })
+                        .catch((error) => {
+                          console.error("Error regenerating commentary:", error);
+                          
+                          // Show error toast
+                          toast({
+                            title: "Regeneration failed",
+                            description: "Failed to regenerate commentary. Please try again later.",
+                            variant: "destructive",
+                          });
+                        });
                     }}
                   >
                     <RefreshCw className="h-3 w-3 mr-1" />
