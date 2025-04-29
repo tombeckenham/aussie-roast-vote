@@ -147,6 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         for (const candidate of candidates) {
           const commentary = await storage.getRoastByCandidate(candidate.id);
+          console.log("commentary found", commentary);
           if (commentary) {
             commentaryMap[candidate.id] = commentary.fullContent || "";
           }
@@ -166,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const seatId = parseInt(req.params.seatId, 10);
-        const forceRegenerate = req.query.force === 'true';
+        const forceRegenerate = req.query.force === "true";
 
         if (isNaN(seatId)) {
           return res.status(400).json({ message: "Invalid seat ID" });
@@ -185,25 +186,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .status(404)
             .json({ message: "No candidates found for this seat" });
         }
-        
+
         // Import rate limiter
-        const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
-        
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
+
         // Rate limit check for seat-wide operations
         // We'll use the seat ID as the candidate ID for tracking commentary generation for the whole seat
         if (!forceRegenerate) {
-          const isAllowed = rateLimiter.isOperationAllowed(seatId, 'commentary', forceRegenerate);
+          const isAllowed = rateLimiter.isOperationAllowed(
+            seatId,
+            "commentary",
+            forceRegenerate,
+          );
           if (!isAllowed) {
-            const timeRemaining = rateLimiter.getTimeRemainingFormatted(seatId, 'commentary');
-            console.log(`Rate limited: Commentary generation for ${seat.name} was performed recently. Next available in ${timeRemaining}`);
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+              seatId,
+              "commentary",
+            );
+            console.log(
+              `Rate limited: Commentary generation for ${seat.name} was performed recently. Next available in ${timeRemaining}`,
+            );
             return res.status(429).json({
               message: `Commentary generation for this seat is rate limited. Try again in ${timeRemaining}.`,
-              timeRemaining
+              timeRemaining,
             });
           }
-          
+
           // Record the operation for the seat
-          rateLimiter.recordOperation(seatId, 'commentary');
+          rateLimiter.recordOperation(seatId, "commentary");
         }
 
         console.log(
@@ -457,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const candidateId = parseInt(req.params.id, 10);
-        const forceRegenerate = req.query.force === 'true';
+        const forceRegenerate = req.query.force === "true";
 
         if (isNaN(candidateId)) {
           return res.status(400).json({ message: "Invalid candidate ID" });
@@ -467,29 +479,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!candidate) {
           return res.status(404).json({ message: "Candidate not found" });
         }
-        
+
         // Import rate limiter
-        const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
-        
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
+
         // Check if operation is allowed based on rate limiting
-        if (!forceRegenerate) {
-          const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'caricature', forceRegenerate);
+        if (!forceRegenerate && !candidate.imageUrl) {
+          const isAllowed = rateLimiter.isOperationAllowed(
+            candidateId,
+            "caricature",
+            forceRegenerate,
+          );
           if (!isAllowed) {
-            const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'caricature');
-            console.log(`Rate limited: Caricature generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`);
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+              candidateId,
+              "caricature",
+            );
+            console.log(
+              `Rate limited: Caricature generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`,
+            );
             return res.status(429).json({
               message: `Caricature generation for this candidate is rate limited. Try again in ${timeRemaining}.`,
-              timeRemaining
+              timeRemaining,
             });
           }
-          
+
           // Record the operation
-          rateLimiter.recordOperation(candidateId, 'caricature');
+          rateLimiter.recordOperation(candidateId, "caricature");
         }
 
         // Add debug log for API KEY presence
         console.log(`XAI_API_KEY exists: ${!!process.env.XAI_API_KEY}`);
-        console.log(`XAI_API_KEY first few chars: ${process.env.XAI_API_KEY?.substring(0, 4)}...`);
+        console.log(
+          `XAI_API_KEY first few chars: ${process.env.XAI_API_KEY?.substring(0, 4)}...`,
+        );
 
         // Import the necessary service
         const { default: xaiService } = await import("./services/xaiService");
@@ -498,32 +523,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `Generating caricature for candidate ${candidate.name} using xAI API...`,
         );
 
-        // Create a detailed prompt for xAI focused on Australian political humor
-        const policyStr =
-          candidate.keyPolicies && candidate.keyPolicies.length > 0
-            ? `Key policies: ${candidate.keyPolicies.join(", ")}.`
-            : "";
+        // Create a shorter prompt for xAI that stays within character limits
+        const policyStr = candidate.keyPolicies && candidate.keyPolicies.length > 0
+          ? `Key policies: ${candidate.keyPolicies.slice(0, 1).join(", ")}.`
+          : "";
 
-        const enhancedPrompt = `
-          Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
-          from the ${candidate.partyBallotName || "Independent"} party.
-          
-          ${policyStr}
-          
-          ${candidate.isIncumbent ? "They are the current incumbent MP." : ""}
-          ${candidate.bio ? "Bio excerpt: " + candidate.bio.substring(0, 150) : ""}
-          
-          Style: Australian political cartoon with exaggerated features, bright colors, clean lines,
-          similar to cartoons from The Australian, Sydney Morning Herald, or The Betoota Advocate.
-          
-          Must include these Australian elements: 
-          - Either a cork hat, Australian flag, kangaroo, koala, or Sydney Opera House
-          - Colors resembling the Australian flag (green and gold) or the outback (orange and red)
-          - Quintessential Aussie caricature style with satirical elements
-          - A humorous visual joke or pun based on their political stance
-          
-          Format: Digital illustration with white background, clean and shareable
-        `;
+        let enhancedPrompt = `Australian political cartoon of ${candidate.name} (${candidate.partyBallotName || "Independent"}). ${policyStr} ${candidate.isIncumbent ? "Current MP." : ""} Style: Exaggerated features, bright colors, clean lines. Include: Australian elements (cork hat/flag/kangaroo/koala), satirical elements, political humor based on stance. White background.`.trim();
+
+        // Before sending the request, check and log the prompt length
+        console.log(`Prompt length: ${enhancedPrompt.length} characters`);
+        if (enhancedPrompt.length > 1000) {
+          console.log("Warning: Prompt approaching maximum length, truncating...");
+          enhancedPrompt = enhancedPrompt.substring(0, 1000);
+        }
 
         // Make a direct fetch to the xAI API (without using any 'size' parameter)
         const response = await fetch("https://api.x.ai/v1/images/generations", {
@@ -533,7 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Authorization: `Bearer ${process.env.XAI_API_KEY}`,
           },
           body: JSON.stringify({
-            prompt: enhancedPrompt.trim(),
+            prompt: enhancedPrompt,
             model: "grok-2-image", // Using the latest model for image generation
             n: 1,
           }),
@@ -622,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const candidateId = parseInt(req.params.id, 10);
-        const forceRegenerate = req.query.force === 'true';
+        const forceRegenerate = req.query.force === "true";
 
         if (isNaN(candidateId)) {
           return res.status(400).json({ message: "Invalid candidate ID" });
@@ -632,24 +644,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!candidate) {
           return res.status(404).json({ message: "Candidate not found" });
         }
-        
+
         // Import rate limiter
-        const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
-        
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
+
         // Check if operation is allowed based on rate limiting
         if (!forceRegenerate) {
-          const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'commentary', forceRegenerate);
+          const isAllowed = rateLimiter.isOperationAllowed(
+            candidateId,
+            "commentary",
+            forceRegenerate,
+          );
           if (!isAllowed) {
-            const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'commentary');
-            console.log(`Rate limited: Commentary regeneration for ${candidate.name} was performed recently. Next available in ${timeRemaining}`);
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+              candidateId,
+              "commentary",
+            );
+            console.log(
+              `Rate limited: Commentary regeneration for ${candidate.name} was performed recently. Next available in ${timeRemaining}`,
+            );
             return res.status(429).json({
               message: `Commentary regeneration for this candidate is rate limited. Try again in ${timeRemaining}.`,
-              timeRemaining
+              timeRemaining,
             });
           }
-          
+
           // Record the operation
-          rateLimiter.recordOperation(candidateId, 'commentary');
+          rateLimiter.recordOperation(candidateId, "commentary");
         }
 
         // Get existing roast to delete
@@ -771,274 +794,393 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Q&A API
   // Generate policies for a candidate
-  app.post("/api/candidates/:id/generate-policies", async (req: Request, res: Response) => {
-    try {
-      const candidateId = parseInt(req.params.id, 10);
-      const forceRegenerate = req.query.force === 'true';
-
-      if (isNaN(candidateId)) {
-        return res.status(400).json({ message: "Invalid candidate ID" });
-      }
-
-      const candidate = await storage.getCandidateById(candidateId);
-      if (!candidate) {
-        return res.status(404).json({ message: "Candidate not found" });
-      }
-      
-      // Import rate limiter
-      const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
-      
-      // Check if operation is allowed based on rate limiting
-      const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'policies', forceRegenerate);
-      if (!isAllowed) {
-        const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'policies');
-        console.log(`Rate limited: Policy generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`);
-        return res.status(429).json({
-          message: `Policy generation for this candidate is rate limited. Try again in ${timeRemaining}.`,
-          timeRemaining
-        });
-      }
-      
-      // Log the regeneration request
-      console.log(`Policy regeneration requested for ${candidate.name}${forceRegenerate ? ' (forced)' : ''}`);
-      
-      // Get electoral seat for context
-      const seat = await storage.getElectoralSeatById(candidate.electoralSeatId);
-      if (!seat) {
-        return res.status(404).json({ message: "Electoral seat not found" });
-      }
-
-      // If candidate already has policies AND force=true is NOT specified, return existing policies
-      if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && !forceRegenerate) {
-        console.log(`Candidate ${candidate.name} already has policies, returning existing ones`);
-        return res.json({
-          id: candidate.id,
-          name: candidate.name,
-          policies: candidate.keyPolicies,
-          source: "existing"
-        });
-      }
-
-      console.log(`Generating policies for candidate ${candidate.name}...`);
-      
-      // Record the operation is happening (before we respond to the client)
-      rateLimiter.recordOperation(candidateId, 'policies');
-      
-      // Always respond immediately to the client and continue processing in background
-      res.json({
-        id: candidate.id,
-        name: candidate.name,
-        message: "Policy generation started and will continue in the background",
-        status: "processing"
-      });
-      
-      // Import Perplexity service for getting raw data
-      const { default: perplexityService } = await import("./services/perplexityService");
-      
+  app.post(
+    "/api/candidates/:id/generate-policies",
+    async (req: Request, res: Response) => {
       try {
-        // First try to get raw data from Perplexity
-        console.log(`Getting raw data from Perplexity for ${candidate.name}...`);
-        const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
-        
-        // Generate policies using both the raw data and xAI
-        console.log(`Generating policies for ${candidate.name} with Perplexity data`);
-        const policies = await xaiService.generateCandidatePolicies(candidate, rawData);
-        
-        if (!policies || policies.length === 0) {
-          console.error(`No policies generated for ${candidate.name}`);
-          return;
+        const candidateId = parseInt(req.params.id, 10);
+        const forceRegenerate = req.query.force === "true";
+
+        if (isNaN(candidateId)) {
+          return res.status(400).json({ message: "Invalid candidate ID" });
         }
 
-        // Update candidate with generated policies
-        const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
-        
-        if (!updatedCandidate) {
-          console.error(`Failed to update ${candidate.name} with policies in database`);
-          return;
+        const candidate = await storage.getCandidateById(candidateId);
+        if (!candidate) {
+          return res.status(404).json({ message: "Candidate not found" });
         }
 
-        console.log(`Successfully updated policies for ${candidate.name}:`, policies);
-      } catch (error) {
-        // If Perplexity data fails, fall back to xAI only
-        const perplexityError = error as Error;
-        console.error(`Error with Perplexity, falling back to xAI only: ${perplexityError.message}`);
-        
-        // Generate policies using xAI only
-        const policies = await xaiService.generateCandidatePolicies(candidate);
-        
-        if (!policies || policies.length === 0) {
-          console.error(`No policies generated for ${candidate.name}`);
-          return;
-        }
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
 
-        // Update candidate with generated policies
-        const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
-        
-        if (!updatedCandidate) {
-          console.error(`Failed to update ${candidate.name} with policies in database`);
-          return;
-        }
-
-        console.log(`Successfully updated policies for ${candidate.name} using fallback:`, policies);
-      }
-    } catch (error) {
-      console.error("Error generating policies:", error);
-      res.status(500).json({ message: "Failed to generate policies" });
-    }
-  });
-
-  // Generate policies for all candidates in a specific seat
-  app.post("/api/seats/:seatId/generate-policies", async (req: Request, res: Response) => {
-    try {
-      const seatId = parseInt(req.params.seatId, 10);
-      const forceRegenerate = req.query.force === 'true';
-
-      if (isNaN(seatId)) {
-        return res.status(400).json({ message: "Invalid seat ID" });
-      }
-
-      const seat = await storage.getElectoralSeatById(seatId);
-      if (!seat) {
-        return res.status(404).json({ message: "Seat not found" });
-      }
-
-      // Get all candidates for this seat
-      const candidates = await storage.getCandidatesByElectoralSeat(seatId);
-
-      if (candidates.length === 0) {
-        return res.status(404).json({ message: "No candidates found for this seat" });
-      }
-      
-      // Import rate limiter
-      const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
-      
-      // Rate limit check for seat-wide operations
-      // We'll use the seat ID to track policy generation for the whole seat
-      if (!forceRegenerate) {
-        const isAllowed = rateLimiter.isOperationAllowed(seatId, 'policies', forceRegenerate);
+        // Check if operation is allowed based on rate limiting
+        const isAllowed = rateLimiter.isOperationAllowed(
+          candidateId,
+          "policies",
+          forceRegenerate,
+        );
         if (!isAllowed) {
-          const timeRemaining = rateLimiter.getTimeRemainingFormatted(seatId, 'policies');
-          console.log(`Rate limited: Policy generation for ${seat.name} was performed recently. Next available in ${timeRemaining}`);
+          const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+            candidateId,
+            "policies",
+          );
+          console.log(
+            `Rate limited: Policy generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`,
+          );
           return res.status(429).json({
-            message: `Policy generation for this seat is rate limited. Try again in ${timeRemaining}.`,
-            timeRemaining
+            message: `Policy generation for this candidate is rate limited. Try again in ${timeRemaining}.`,
+            timeRemaining,
           });
         }
-        
-        // Record the operation for the seat
-        rateLimiter.recordOperation(seatId, 'policies');
-      }
 
-      console.log(`Generating policies for all ${candidates.length} candidates in ${seat.name}...`);
+        // Log the regeneration request
+        console.log(
+          `Policy regeneration requested for ${candidate.name}${forceRegenerate ? " (forced)" : ""}`,
+        );
 
-      // Respond quickly to the client, then continue processing
-      res.json({
-        seatId,
-        seatName: seat.name,
-        totalCandidates: candidates.length,
-        message: "Policy generation has started and will continue in the background",
-        status: "processing"
-      });
+        // Get electoral seat for context
+        const seat = await storage.getElectoralSeatById(
+          candidate.electoralSeatId,
+        );
+        if (!seat) {
+          return res.status(404).json({ message: "Electoral seat not found" });
+        }
 
-      // Continue processing in the background
-      (async () => {
+        // If candidate already has policies AND force=true is NOT specified, return existing policies
+        if (
+          candidate.keyPolicies &&
+          candidate.keyPolicies.length > 0 &&
+          !forceRegenerate
+        ) {
+          console.log(
+            `Candidate ${candidate.name} already has policies, returning existing ones`,
+          );
+          return res.json({
+            id: candidate.id,
+            name: candidate.name,
+            policies: candidate.keyPolicies,
+            source: "existing",
+          });
+        }
+
+        console.log(`Generating policies for candidate ${candidate.name}...`);
+
+        // Record the operation is happening (before we respond to the client)
+        rateLimiter.recordOperation(candidateId, "policies");
+
+        // Always respond immediately to the client and continue processing in background
+        res.json({
+          id: candidate.id,
+          name: candidate.name,
+          message:
+            "Policy generation started and will continue in the background",
+          status: "processing",
+        });
+
+        // Import Perplexity service for getting raw data
+        const { default: perplexityService } = await import(
+          "./services/perplexityService"
+        );
+
         try {
-          const results: Record<number, string[]> = {};
-          let successCount = 0;
-          const forceUpdate = req.query.force === 'true';
+          // First try to get raw data from Perplexity
+          console.log(
+            `Getting raw data from Perplexity for ${candidate.name}...`,
+          );
+          const rawData = await perplexityService.getCandidateRawData(
+            candidate,
+            seat.name,
+          );
 
-          // Use Promise.all with a limited concurrency (process 3 candidates at a time)
-          const batchSize = 3;
-          for (let i = 0; i < candidates.length; i += batchSize) {
-            const batch = candidates.slice(i, i + batchSize);
-            
-            // Import Perplexity service for getting raw data
-            const { default: perplexityService } = await import("./services/perplexityService");
-            
-            await Promise.all(batch.map(async (candidate) => {
-              try {
-                console.log(`Generating policies for ${candidate.name}...`);
-                
-                // Skip if candidate already has policies and force is not true
-                if (candidate.keyPolicies && candidate.keyPolicies.length > 0 && !forceUpdate) {
-                  console.log(`${candidate.name} already has policies, skipping...`);
-                  results[candidate.id] = candidate.keyPolicies;
-                  return;
-                }
-                
-                // First, try to get raw data from Perplexity
-                let policies: string[] = [];
-                try {
-                  console.log(`Getting raw data from Perplexity for ${candidate.name}...`);
-                  const rawData = await perplexityService.getCandidateRawData(candidate, seat.name);
-                  
-                  // Generate policies using the raw data and xAI
-                  console.log(`Generating policies for ${candidate.name} with Perplexity data`);
-                  policies = await xaiService.generateCandidatePolicies(candidate, rawData);
-                } catch (error) {
-                  // Fall back to xAI only if Perplexity fails
-                  const perplexityError = error as Error;
-                  console.error(`Perplexity error for ${candidate.name}, falling back to xAI only:`, perplexityError.message);
-                  policies = await xaiService.generateCandidatePolicies(candidate);
-                }
-                
-                if (policies && policies.length > 0) {
-                  // Update candidate with generated policies
-                  const updatedCandidate = await storage.updateCandidatePolicies(candidate.id, policies);
-                  
-                  if (updatedCandidate) {
-                    console.log(`Successfully updated policies for ${candidate.name}:`, policies);
-                    results[candidate.id] = policies;
-                    successCount++;
-                  }
-                }
-              } catch (candidateError) {
-                console.error(`Error processing policies for ${candidate.name}:`, candidateError);
-                results[candidate.id] = ["Error generating policies"];
-              }
-            }));
-            
-            // Brief pause between batches to prevent overwhelming the API
-            if (i + batchSize < candidates.length) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
+          // Generate policies using both the raw data and xAI
+          console.log(
+            `Generating policies for ${candidate.name} with Perplexity data`,
+          );
+          const policies = await xaiService.generateCandidatePolicies(
+            candidate,
+            rawData,
+          );
+
+          if (!policies || policies.length === 0) {
+            console.error(`No policies generated for ${candidate.name}`);
+            return;
           }
 
-          console.log(`Policy generation complete for ${seat.name}. Success: ${successCount} of ${candidates.length}`);
-        } catch (backgroundError) {
-          console.error(`Background processing error for ${seat.name}:`, backgroundError);
+          // Update candidate with generated policies
+          const updatedCandidate = await storage.updateCandidatePolicies(
+            candidate.id,
+            policies,
+          );
+
+          if (!updatedCandidate) {
+            console.error(
+              `Failed to update ${candidate.name} with policies in database`,
+            );
+            return;
+          }
+
+          console.log(
+            `Successfully updated policies for ${candidate.name}:`,
+            policies,
+          );
+        } catch (error) {
+          // If Perplexity data fails, fall back to xAI only
+          const perplexityError = error as Error;
+          console.error(
+            `Error with Perplexity, falling back to xAI only: ${perplexityError.message}`,
+          );
+
+          // Generate policies using xAI only
+          const policies =
+            await xaiService.generateCandidatePolicies(candidate);
+
+          if (!policies || policies.length === 0) {
+            console.error(`No policies generated for ${candidate.name}`);
+            return;
+          }
+
+          // Update candidate with generated policies
+          const updatedCandidate = await storage.updateCandidatePolicies(
+            candidate.id,
+            policies,
+          );
+
+          if (!updatedCandidate) {
+            console.error(
+              `Failed to update ${candidate.name} with policies in database`,
+            );
+            return;
+          }
+
+          console.log(
+            `Successfully updated policies for ${candidate.name} using fallback:`,
+            policies,
+          );
         }
-      })();
-      
-    } catch (error) {
-      console.error("Error generating policies for seat:", error);
-      res.status(500).json({ message: "Failed to generate policies" });
-    }
-  });
+      } catch (error) {
+        console.error("Error generating policies:", error);
+        res.status(500).json({ message: "Failed to generate policies" });
+      }
+    },
+  );
+
+  // Generate policies for all candidates in a specific seat
+  app.post(
+    "/api/seats/:seatId/generate-policies",
+    async (req: Request, res: Response) => {
+      try {
+        const seatId = parseInt(req.params.seatId, 10);
+        const forceRegenerate = req.query.force === "true";
+
+        if (isNaN(seatId)) {
+          return res.status(400).json({ message: "Invalid seat ID" });
+        }
+
+        const seat = await storage.getElectoralSeatById(seatId);
+        if (!seat) {
+          return res.status(404).json({ message: "Seat not found" });
+        }
+
+        // Get all candidates for this seat
+        const candidates = await storage.getCandidatesByElectoralSeat(seatId);
+
+        if (candidates.length === 0) {
+          return res
+            .status(404)
+            .json({ message: "No candidates found for this seat" });
+        }
+
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
+
+        // Rate limit check for seat-wide operations
+        // We'll use the seat ID to track policy generation for the whole seat
+        if (!forceRegenerate) {
+          const isAllowed = rateLimiter.isOperationAllowed(
+            seatId,
+            "policies",
+            forceRegenerate,
+          );
+          if (!isAllowed) {
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+              seatId,
+              "policies",
+            );
+            console.log(
+              `Rate limited: Policy generation for ${seat.name} was performed recently. Next available in ${timeRemaining}`,
+            );
+            return res.status(429).json({
+              message: `Policy generation for this seat is rate limited. Try again in ${timeRemaining}.`,
+              timeRemaining,
+            });
+          }
+
+          // Record the operation for the seat
+          rateLimiter.recordOperation(seatId, "policies");
+        }
+
+        console.log(
+          `Generating policies for all ${candidates.length} candidates in ${seat.name}...`,
+        );
+
+        // Respond quickly to the client, then continue processing
+        res.json({
+          seatId,
+          seatName: seat.name,
+          totalCandidates: candidates.length,
+          message:
+            "Policy generation has started and will continue in the background",
+          status: "processing",
+        });
+
+        // Continue processing in the background
+        (async () => {
+          try {
+            const results: Record<number, string[]> = {};
+            let successCount = 0;
+            const forceUpdate = req.query.force === "true";
+
+            // Use Promise.all with a limited concurrency (process 3 candidates at a time)
+            const batchSize = 3;
+            for (let i = 0; i < candidates.length; i += batchSize) {
+              const batch = candidates.slice(i, i + batchSize);
+
+              // Import Perplexity service for getting raw data
+              const { default: perplexityService } = await import(
+                "./services/perplexityService"
+              );
+
+              await Promise.all(
+                batch.map(async (candidate) => {
+                  try {
+                    console.log(`Generating policies for ${candidate.name}...`);
+
+                    // Skip if candidate already has policies and force is not true
+                    if (
+                      candidate.keyPolicies &&
+                      candidate.keyPolicies.length > 0 &&
+                      !forceUpdate
+                    ) {
+                      console.log(
+                        `${candidate.name} already has policies, skipping...`,
+                      );
+                      results[candidate.id] = candidate.keyPolicies;
+                      return;
+                    }
+
+                    // First, try to get raw data from Perplexity
+                    let policies: string[] = [];
+                    try {
+                      console.log(
+                        `Getting raw data from Perplexity for ${candidate.name}...`,
+                      );
+                      const rawData =
+                        await perplexityService.getCandidateRawData(
+                          candidate,
+                          seat.name,
+                        );
+
+                      // Generate policies using the raw data and xAI
+                      console.log(
+                        `Generating policies for ${candidate.name} with Perplexity data`,
+                      );
+                      policies = await xaiService.generateCandidatePolicies(
+                        candidate,
+                        rawData,
+                      );
+                    } catch (error) {
+                      // Fall back to xAI only if Perplexity fails
+                      const perplexityError = error as Error;
+                      console.error(
+                        `Perplexity error for ${candidate.name}, falling back to xAI only:`,
+                        perplexityError.message,
+                      );
+                      policies =
+                        await xaiService.generateCandidatePolicies(candidate);
+                    }
+
+                    if (policies && policies.length > 0) {
+                      // Update candidate with generated policies
+                      const updatedCandidate =
+                        await storage.updateCandidatePolicies(
+                          candidate.id,
+                          policies,
+                        );
+
+                      if (updatedCandidate) {
+                        console.log(
+                          `Successfully updated policies for ${candidate.name}:`,
+                          policies,
+                        );
+                        results[candidate.id] = policies;
+                        successCount++;
+                      }
+                    }
+                  } catch (candidateError) {
+                    console.error(
+                      `Error processing policies for ${candidate.name}:`,
+                      candidateError,
+                    );
+                    results[candidate.id] = ["Error generating policies"];
+                  }
+                }),
+              );
+
+              // Brief pause between batches to prevent overwhelming the API
+              if (i + batchSize < candidates.length) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+              }
+            }
+
+            console.log(
+              `Policy generation complete for ${seat.name}. Success: ${successCount} of ${candidates.length}`,
+            );
+          } catch (backgroundError) {
+            console.error(
+              `Background processing error for ${seat.name}:`,
+              backgroundError,
+            );
+          }
+        })();
+      } catch (error) {
+        console.error("Error generating policies for seat:", error);
+        res.status(500).json({ message: "Failed to generate policies" });
+      }
+    },
+  );
 
   // Generate policies for all candidates across all seats
-  app.post("/api/policies/generate-all", async (req: Request, res: Response) => {
-    try {
-      // Import the script
-      const { default: generateCandidatePolicies } = await import("./scripts/generateCandidatePolicies");
-      
-      // Start the generation process (runs asynchronously)
-      const result = await generateCandidatePolicies();
-      
-      return res.json({
-        message: "Policy generation started",
-        initialResults: result
-      });
-    } catch (error) {
-      console.error("Error starting policy generation:", error);
-      res.status(500).json({ message: "Failed to start policy generation" });
-    }
-  });
+  app.post(
+    "/api/policies/generate-all",
+    async (req: Request, res: Response) => {
+      try {
+        // Import the script
+        const { default: generateCandidatePolicies } = await import(
+          "./scripts/generateCandidatePolicies"
+        );
+
+        // Start the generation process (runs asynchronously)
+        const result = await generateCandidatePolicies();
+
+        return res.json({
+          message: "Policy generation started",
+          initialResults: result,
+        });
+      } catch (error) {
+        console.error("Error starting policy generation:", error);
+        res.status(500).json({ message: "Failed to start policy generation" });
+      }
+    },
+  );
 
   app.post("/api/candidates/:id/ask", async (req: Request, res: Response) => {
     try {
       const candidateId = parseInt(req.params.id, 10);
-      const forceRegenerate = req.query.force === 'true';
+      const forceRegenerate = req.query.force === "true";
 
       if (isNaN(candidateId)) {
         return res.status(400).json({ message: "Invalid candidate ID" });
@@ -1059,24 +1201,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { question } = parsedBody.data;
-      
+
       // Import rate limiter
-      const rateLimiter = await import("./services/rateLimiter").then(m => m.default);
-      
+      const rateLimiter = await import("./services/rateLimiter").then(
+        (m) => m.default,
+      );
+
       // Check if operation is allowed based on rate limiting
       if (!forceRegenerate) {
-        const isAllowed = rateLimiter.isOperationAllowed(candidateId, 'qa', forceRegenerate);
+        const isAllowed = rateLimiter.isOperationAllowed(
+          candidateId,
+          "qa",
+          forceRegenerate,
+        );
         if (!isAllowed) {
-          const timeRemaining = rateLimiter.getTimeRemainingFormatted(candidateId, 'qa');
-          console.log(`Rate limited: Q&A for candidate ID ${candidateId} was performed recently. Next available in ${timeRemaining}`);
+          const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+            candidateId,
+            "qa",
+          );
+          console.log(
+            `Rate limited: Q&A for candidate ID ${candidateId} was performed recently. Next available in ${timeRemaining}`,
+          );
           return res.status(429).json({
             message: `Q&A for this candidate is rate limited. Try again in ${timeRemaining}.`,
-            timeRemaining
+            timeRemaining,
           });
         }
-        
+
         // Record the operation
-        rateLimiter.recordOperation(candidateId, 'qa');
+        rateLimiter.recordOperation(candidateId, "qa");
       }
 
       // Fetch candidate

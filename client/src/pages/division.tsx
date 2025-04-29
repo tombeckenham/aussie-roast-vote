@@ -44,7 +44,6 @@ const DivisionPage = () => {
   // Generate commentaries for all candidates in this seat
   const generateCommentaryMutation = useMutation({
     mutationFn: async () => {
-      setGeneratingCommentary(true);
       // Make sure we have a valid seat id
       if (!seat?.id) throw new Error("Invalid seat ID");
 
@@ -70,11 +69,7 @@ const DivisionPage = () => {
     },
     onError: (error) => {
       console.error("Error generating commentaries:", error);
-      toast({
-        title: "Failed to generate commentaries",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive",
-      });
+
       setGeneratingCommentary(false);
     },
   });

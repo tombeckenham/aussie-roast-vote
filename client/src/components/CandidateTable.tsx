@@ -35,6 +35,7 @@ interface Candidate {
   keyPolicies: string[] | null;
   websiteUrl: string | null;
   isIncumbent: boolean | null;
+  roast: { content: string; fullContent: string; isSpicy: boolean };
 }
 
 interface CaricatureData {
@@ -57,6 +58,8 @@ const CandidateTable = ({
   const [commentariesState, setCommentaries] = useState<Record<number, string>>(
     {},
   );
+
+  console.log("isGeneratingCommentary", isGeneratingCommentary);
 
   // Fetch candidates for the electoral seat
   const {
@@ -135,15 +138,7 @@ const CandidateTable = ({
     enabled: !!seatId,
   });
 
-  // Fetch candidate commentaries from the API
-  const { data: commentaries = {}, refetch: refetchCommentaries } = useQuery<
-    Record<number, string>
-  >({
-    queryKey: [`/api/seats/${seatId}/commentaries`],
-    enabled: !!seatId && !!candidates?.length,
-    initialData: {},
-    refetchInterval: isGeneratingCommentary ? 2000 : false, // Poll every 2 seconds while generating
-  });
+  console.log("Seat data:", seatId, candidates);
 
   // Generate caricature mutation
   const generateCaricatureMutation = useMutation({
@@ -195,10 +190,6 @@ const CandidateTable = ({
       }
     },
   });
-
-  const handleRefreshCommentaries = useCallback(() => {
-    refetchCommentaries();
-  }, []);
 
   const handleGenerateCaricature = (candidateId: number) => {
     if (generatingCaricature !== candidateId) {
@@ -497,7 +488,7 @@ const CandidateTable = ({
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Overview
                 </h4>
-                {commentaries[candidate.id] && (
+                {candidate.roast && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -554,7 +545,7 @@ const CandidateTable = ({
                   </Button>
                 )}
               </div>
-              {isGeneratingCommentary && !commentaries[candidate.id] ? (
+              {isGeneratingCommentary && !candidate.roast.fullContent ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-4/5" />
@@ -564,9 +555,9 @@ const CandidateTable = ({
                     <span>Generating overview...</span>
                   </div>
                 </div>
-              ) : commentaries[candidate.id] ? (
+              ) : !!candidate.roast.fullContent ? (
                 <div className="text-sm py-2 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 text-gray-700">
-                  {commentaries[candidate.id]}
+                  {candidate.roast.fullContent}
                 </div>
               ) : (
                 <div className="flex items-center space-x-2 text-gray-500 text-sm justify-center border border-dashed border-gray-200 rounded p-2">
