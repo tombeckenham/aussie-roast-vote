@@ -19,6 +19,10 @@ const CandidateDetail = ({ id, onClose }: CandidateDetailProps) => {
   const { data: candidate, isLoading, error } = useQuery({
     queryKey: [`/api/candidates/${id}`],
     enabled: !!id,
+    onSuccess: (data) => {
+      console.log("Candidate data loaded:", data);
+      console.log("Image URL:", data?.imageUrl);
+    }
   });
 
   const askQuestionMutation = useMutation({

@@ -6,6 +6,11 @@ interface CandidateCardProps {
 }
 
 const CandidateCard = ({ candidate, onViewDetails }: CandidateCardProps) => {
+  // Add debugging for the candidate object
+  console.log("CandidateCard - candidate:", candidate);
+  console.log("CandidateCard - imageUrl:", candidate.imageUrl);
+  console.log("CandidateCard - image_url:", candidate.image_url);
+  
   const { name, position, imageUrl, party, roast, keyPolicies, activities } = candidate;
   
   // Determine party color for the header
