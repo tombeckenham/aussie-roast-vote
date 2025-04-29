@@ -155,10 +155,21 @@ const CandidateTable = ({
           method: "POST",
         },
       );
-      if (!response.ok) {
+      
+      if (response.ok) {
+        return response.json() as Promise<CaricatureData>;
+      } else if (response.status === 429) {
+        // Handle rate limit error
+        const errorData = await response.json();
+        toast({
+          title: "Rate limited",
+          description: errorData.message || "This operation is rate limited. Please try again later.",
+          variant: "destructive",
+        });
+        throw new Error(`Rate limited: ${errorData.message}`);
+      } else {
         throw new Error("Failed to generate caricature");
       }
-      return response.json() as Promise<CaricatureData>;
     },
     onSuccess: (data) => {
       // Invalidate the candidate query to refresh the data
@@ -167,8 +178,19 @@ const CandidateTable = ({
       });
       setGeneratingCaricature(null);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Caricature generation error:", error);
       setGeneratingCaricature(null);
+      
+      // Only show generic error if it's not a rate limit error
+      // (rate limit errors already show a toast)
+      if (!error.message?.includes('Rate limited')) {
+        toast({
+          title: "Portrait generation failed",
+          description: "Failed to generate portrait. Please try again later.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
