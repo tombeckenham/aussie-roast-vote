@@ -407,9 +407,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 (isIncumbent ? seat.currentMpPhotoUrl : candidate.imageUrl),
             };
 
-            // Return data with proper associations
+            // Add debug logging for imageUrl values
+            console.log(`Candidate ${enhancedCandidate.name} imageUrl:`, enhancedCandidate.imageUrl);
+            
             return {
               ...enhancedCandidate,
+              // Preserve the imageUrl value from the enhancedCandidate object
+              imageUrl: enhancedCandidate.imageUrl,
               party,
               roast,
               activities: activities.slice(0, 1), // Just return the next activity
@@ -462,15 +466,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch QA history
       const qaHistory = await storage.getCandidateQA(candidateId);
 
-      // Ensure fields use camelCase for the client
+      // Log for debugging what's coming from the database
+      console.log("Candidate raw from DB:", JSON.stringify(candidate, null, 2));
+      
+      // Make sure we preserve the imageUrl field (debugging shows it might be getting lost)
       const mappedCandidate = {
         ...candidate,
-        // The image URL might already be properly mapped by Drizzle
+        // Ensure imageUrl is preserved - if it's null/undefined, log a warning
+        imageUrl: candidate.imageUrl || null,
         party,
         roast,
         activities,
         qaHistory,
       };
+      
+      // Log the final mapped candidate for debugging
+      console.log("Mapped candidate imageUrl:", mappedCandidate.imageUrl);
       
       res.json(mappedCandidate);
     } catch (error) {
