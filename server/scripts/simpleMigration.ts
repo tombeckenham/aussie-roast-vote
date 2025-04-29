@@ -63,9 +63,9 @@ async function migrateImages() {
   
   try {
     // Get all candidates with images that look like base64 data
-    // We've already processed 300 images, let's continue with the next batch
+    // We've already processed 400 images, let's continue with the next batch
     const result = await db.execute(
-      `SELECT id, name, image_url FROM candidates WHERE image_url LIKE '/9j/%' OR image_url LIKE 'data:image/%' LIMIT 100 OFFSET 300`
+      `SELECT id, name, image_url FROM candidates WHERE image_url LIKE '/9j/%' OR image_url LIKE 'data:image/%' LIMIT 100 OFFSET 400`
     );
     
     if (!result.rows || result.rows.length === 0) {
