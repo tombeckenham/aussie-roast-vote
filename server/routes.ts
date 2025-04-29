@@ -9,6 +9,7 @@ import {
   electoralSeats,
   localities,
   aiRoasts,
+  candidates,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import {
@@ -402,9 +403,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 (isIncumbent
                   ? `Current Member for ${seat.name}`
                   : candidate.bio),
+              // Ensure imageUrl is correctly set with a fallback for incumbents
               imageUrl:
                 candidate.imageUrl ||
-                (isIncumbent ? seat.currentMpPhotoUrl : candidate.imageUrl),
+                (isIncumbent ? seat.currentMpPhotoUrl : null),
             };
 
             // Add debug logging for imageUrl values
@@ -582,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const candidateId = parseInt(req.params.id, 10);
       
-      // Get candidate directly from database
+      // Get candidate directly from database using the candidates table
       const [rawCandidate] = await db
         .select()
         .from(candidates)
