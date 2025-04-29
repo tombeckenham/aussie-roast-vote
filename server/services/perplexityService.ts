@@ -30,7 +30,7 @@ class PerplexityService {
 
       const prompt = `Research and collect information about ${candidate.name}, ${partyInfo}, who is running for the ${electorateName} electorate in the 2025 Australian federal election.
 
-Please provide in detail:
+Please provide in detail and in this format:
 1. Key policy positions and political stances - list specific policies with bullet points
    - Include policy positions on climate change, economy, healthcare, education, immigration
    - Note flagship policies or signature issues they campaign on
@@ -89,7 +89,6 @@ Only provide factual information - don't create any commentary, humor or opinion
           temperature: 0.3, // Low temperature for more factual responses
           top_p: 0.9,
           max_tokens: 2000, // Increased token limit for more detailed information
-          search_recency_filter: "week" // More recent information
           // Removing search_domain_filter as it's causing API errors
         }),
       });

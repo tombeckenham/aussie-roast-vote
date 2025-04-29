@@ -433,14 +433,14 @@ export async function generateCaricatureImage(
     // Create a detailed prompt for xAI focused on Australian political humor
     const policyStr =
       candidate.keyPolicies && candidate.keyPolicies.length > 0
-        ? `Key policies: ${candidate.keyPolicies.join(", ")}.`
+        ? `Key policies: ${candidate.keyPolicies.slice(0, 1).join(", ")}.`
         : "";
 
     const enhancedPrompt = `
       Create a political caricature in true Australian cartoon style of politician ${candidate.name} 
       from the ${candidate.partyBallotName || "Independent"} party.
       
-      ${policyStr}
+      ${policyStr.substring(0, 250)}
       
       ${candidate.isIncumbent ? "They are the current incumbent MP." : ""}
       ${candidate.bio ? "Bio excerpt: " + candidate.bio.substring(0, 150) : ""}
@@ -536,9 +536,9 @@ export async function generateCaricatureImage(
 }
 
 /**
- * Extract policy information from raw Perplexity data
+ * Extract policy information from raw Perplexity data using a more robust approach.
  * @param rawData Raw data from Perplexity API
- * @returns Array of extracted policy statements
+ * @returns Array of extracted policy statements (up to 3)
  */
 export function extractPoliciesFromRawData(rawData: string): string[] {
   try {
@@ -546,50 +546,84 @@ export function extractPoliciesFromRawData(rawData: string): string[] {
 
     console.log("Extracting policies from raw Perplexity data...");
 
-    // Find the policy section by looking for headings
-    const policySection = rawData.match(
-      /(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i,
-    );
+    const lines = rawData.split('\n');
+    let policySectionStartIndex = -1;
+    let nextSectionStartIndex = -1;
 
-    if (!policySection || !policySection[1]) {
-      console.log("No policy section found in raw data");
+    // Regex to find potential policy headers (case-insensitive, multiline)
+    // Looks for lines starting with optional #, optional number/dot, optional whitespace,
+    // then keywords like Policy, Stances, Positions, Issues, Priorities.
+    const policyHeaderRegex = /^#*\s*\d*\.?\s*(?:Key\s+|Main\s+)?(?:Policies|Policy\s+Positions?|Political\s+Stances?|Key\s+Issues?|Priorities)\b.*$/im;
+
+    // Find the start of the policy section
+    for (let i = 0; i < lines.length; i++) {
+      if (policyHeaderRegex.test(lines[i])) {
+        policySectionStartIndex = i;
+        console.log(`Found potential policy header at line ${i + 1}: "${lines[i]}"`);
+        break;
+      }
+    }
+
+    if (policySectionStartIndex === -1) {
+      console.log("No policy section header found in raw data.");
       return [];
     }
 
-    // Extract bullet points that start with dash
-    const policyText = policySection[1];
-    let policies = policyText
-      .split("\n")
-      .filter((line) => line.trim().startsWith("-"))
-      .map((line) => line.trim().replace(/^-\s*/, "").trim()) // Remove the dash and leading whitespace
-      .filter(
-        (policy) =>
-          policy.length > 10 &&
-          policy.length < 150 &&
-          !policy.includes("Include policy positions") &&
-          !policy.includes("Note flagship policies") &&
-          !policy.includes("signature issues"),
-      );
+    // Regex to find the start of the *next* section (case-insensitive, multiline)
+    // Looks for lines starting with # or a number+dot, indicating a new section.
+    const nextSectionHeaderRegex = /^#+\s*\w+|^\d+\.\s*\w+/im;
 
-    // If we didn't find dash-based bullet points, try other formats
-    if (policies.length === 0) {
-      policies = policyText
-        .split(/\n\s*-\s*|\n\*\*|\n•|\n\*/)
-        .filter(
-          (policy) =>
-            policy.trim().length > 10 &&
-            !policy.includes("Key policy positions") &&
-            !policy.includes("Key Policy Positions") &&
-            !policy.includes("and Political Stances"),
-        )
-        .map((policy) => policy.trim().replace(/\*\*/g, ""))
-        .filter((policy) => policy.length > 10 && policy.length < 150);
+    // Find the start of the next section *after* the policy header
+    for (let i = policySectionStartIndex + 1; i < lines.length; i++) {
+      // Also consider double newlines or horizontal rules as section breaks
+      if (nextSectionHeaderRegex.test(lines[i]) || /^-{3,}$|^={3,}$/.test(lines[i]) || (lines[i].trim() === '' && lines[i-1]?.trim() === '')) {
+        nextSectionStartIndex = i;
+        console.log(`Found potential next section header at line ${i + 1}: "${lines[i]}"`);
+        break;
+      }
     }
 
-    // Get top 3 policies
-    policies = policies.slice(0, 3);
+    // Extract the text between the policy header and the next section header (or end of text)
+    const policyBlockLines = lines.slice(
+      policySectionStartIndex + 1, // Start after the header line
+      nextSectionStartIndex !== -1 ? nextSectionStartIndex : undefined // Go until next header or end
+    );
+    const policyBlockText = policyBlockLines.join('\n').trim();
 
-    console.log(`Extracted ${policies.length} policies from raw data`);
+    if (!policyBlockText) {
+      console.log("Policy section found, but it appears empty.");
+      return [];
+    }
+
+    // // Now, extract individual policy points from the block
+    // // Look for lines starting with -, *, •, or numbers/letters followed by . or )
+    // let policies = policyBlockText
+    //   .split('\n')
+    //   .map(line => line.trim())
+    //   .filter(line => /^[-*•]|^(?:\d+|[a-zA-Z])[.)]/.test(line)) // Keep lines starting with list markers
+    //   .map(line => line.replace(/^[-*•]|^(?:\d+|[a-zA-Z])[.)]\s*/, '').trim()) // Remove the marker
+    //   .filter(policy => 
+    //       policy.length > 10 && 
+    //       policy.length < 200 && // Allow slightly longer policies now
+    //       !/(?:include|note|signature|position|stance|policy)/i.test(policy) // Filter out instructional lines
+    //   );
+    
+    // // Fallback: If no list markers found, split by sentence and take first few sentences.
+    // if (policies.length === 0) {
+    //    console.log("No list markers found in policy block, attempting sentence splitting.");
+    //    policies = policyBlockText
+    //      .split(/[.!?](?!\d)/) // Split by sentence endings (avoid splitting on decimals)
+    //      .map(sentence => sentence.trim())
+    //      .filter(sentence => 
+    //          sentence.length > 15 && // Reasonably long sentence
+    //          sentence.length < 200 &&
+    //          !/(?:include|note|signature|position|stance|policy)/i.test(sentence)
+    //      );
+    // }
+
+    const policies = [policyBlockText];
+
+    console.log(`Extracted ${policies.length} policies:`, policies);
     return policies;
   } catch (error) {
     console.error("Error extracting policies from raw data:", error);

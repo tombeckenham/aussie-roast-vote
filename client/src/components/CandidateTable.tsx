@@ -35,7 +35,7 @@ interface Candidate {
   keyPolicies: string[] | null;
   websiteUrl: string | null;
   isIncumbent: boolean | null;
-  roast: { content: string; fullContent: string; isSpicy: boolean };
+  roast?: { content: string; fullContent: string; isSpicy: boolean };
 }
 
 interface CaricatureData {
@@ -145,7 +145,7 @@ const CandidateTable = ({
     mutationFn: async (candidateId: number) => {
       setGeneratingCaricature(candidateId);
       const response = await fetch(
-        `/api/candidates/${candidateId}/caricature?force=true`,
+        `/api/candidates/${candidateId}/caricature`,
         {
           method: "POST",
         },
@@ -223,10 +223,7 @@ const CandidateTable = ({
         // Auto-generate caricatures if missing
         if (!candidate.imageUrl && generatingCaricature !== candidate.id) {
           // Delay each caricature generation to avoid overloading the server
-          setTimeout(() => {
-            console.log(`Auto-generating caricature for ${candidate.name}`);
-            generateCaricatureMutation.mutate(candidate.id);
-          }, 1000 * Math.random()); // Random delay between 0-1000ms
+          generateCaricatureMutation.mutate(candidate.id);
         }
 
         // Auto-generate policies if missing
@@ -565,7 +562,7 @@ const CandidateTable = ({
                   </Button>
                 )}
               </div>
-              {isGeneratingCommentary && !candidate.roast.fullContent ? (
+              {isGeneratingCommentary && !candidate.roast?.fullContent ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-4/5" />
@@ -575,9 +572,9 @@ const CandidateTable = ({
                     <span>Generating overview...</span>
                   </div>
                 </div>
-              ) : !!candidate.roast.fullContent ? (
+              ) : !!candidate.roast?.fullContent ? (
                 <div className="text-sm py-2 px-3 border-l-2 border-l-aussie-green/40 rounded-r-sm bg-gray-50/50 text-gray-700">
-                  {candidate.roast.fullContent}
+                  {candidate.roast?.fullContent}
                 </div>
               ) : (
                 <div className="flex items-center space-x-2 text-gray-500 text-sm justify-center border border-dashed border-gray-200 rounded p-2">
