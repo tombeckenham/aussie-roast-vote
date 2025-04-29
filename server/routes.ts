@@ -576,6 +576,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch roasts for debugging" });
     }
   });
+  
+  // Debug endpoint to check specific candidate with image info
+  app.get("/api/debug/candidate/:id", async (req: Request, res: Response) => {
+    try {
+      const candidateId = parseInt(req.params.id, 10);
+      
+      // Get candidate directly from database
+      const [rawCandidate] = await db
+        .select()
+        .from(candidates)
+        .where(eq(candidates.id, candidateId));
+      
+      // Get candidate through storage interface
+      const storageCandidate = await storage.getCandidateById(candidateId);
+      
+      // See both results
+      res.json({
+        rawFromDb: rawCandidate,
+        fromStorage: storageCandidate,
+        imageUrlFromRaw: rawCandidate?.imageUrl,
+        imageUrlFromStorage: storageCandidate?.imageUrl,
+      });
+    } catch (error) {
+      console.error("Error fetching candidate for debugging:", error);
+      res.status(500).json({ message: "Failed to fetch candidate for debugging" });
+    }
+  });
 
   // Regenerate commentary for a specific candidate
   app.post(
