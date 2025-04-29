@@ -42,11 +42,15 @@ const CandidateCard = ({ candidate, onViewDetails }: CandidateCardProps) => {
       
       <div className="p-5">
         <div className="flex items-start mb-4">
-          <img 
-            src={imageUrl || `https://randomuser.me/api/portraits/men/${candidate.id}.jpg`} 
-            alt={name} 
-            className="w-20 h-20 object-cover rounded-lg mr-4"
-          />
+          {/* Added debugging to check image URL */}
+          <div>
+            <small style={{display: 'none'}}>Image: {imageUrl || 'No URL found'}</small>
+            <img 
+              src={imageUrl || `https://randomuser.me/api/portraits/men/${candidate.id}.jpg`} 
+              alt={name} 
+              className="w-20 h-20 object-cover rounded-lg mr-4"
+            />
+          </div>
           <div>
             <h4 className="font-heading font-bold text-xl">{name}</h4>
             <p className="text-sm opacity-75">{position || "Candidate"}</p>

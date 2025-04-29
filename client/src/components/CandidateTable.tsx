@@ -337,6 +337,9 @@ const CandidateTable = ({
               <div className="flex justify-between mb-2">
                 <div className="flex items-center">
                   <Avatar className="h-20 w-20 mr-3">
+                    {/* Log image URL for debugging */}
+                    {console.log(`Image URL for ${candidate.name}:`, candidate.imageUrl)}
+                    
                     <AvatarImage
                       src={candidate.imageUrl || ""}
                       alt={candidate.name}
