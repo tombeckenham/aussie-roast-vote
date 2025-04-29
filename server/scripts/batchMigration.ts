@@ -8,7 +8,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
 // Configuration
-const BATCH_SIZE = 15; // Process this many images at a time (further reduced to prevent timeouts)
+const BATCH_SIZE = 10; // Process this many images at a time (further reduced to prevent timeouts)
 const STORAGE_DIR = path.join(process.cwd(), "public", "storage");
 
 // Create the storage directory if it doesn't exist
@@ -63,9 +63,11 @@ async function saveBase64ImageToStorage(
  */
 async function processBatch(offset: number): Promise<number> {
   // Get a batch of candidates with base64-encoded images
+  // Order by id to ensure consistent batching
   const result = await db.execute(
     `SELECT id, name, image_url FROM candidates 
      WHERE image_url LIKE '/9j/%' OR image_url LIKE 'data:image/%' 
+     ORDER BY id
      LIMIT ${BATCH_SIZE} OFFSET ${offset}`
   );
   
@@ -126,10 +128,10 @@ async function migrateAllImages() {
       return;
     }
     
-    // Continue from batch 7 (approximately)
-    let offset = 105;
-    let processedCount = 105; // We've processed 105 images so far
-    let batchCount = 7;
+    // Start from the beginning
+    let offset = 0;
+    let processedCount = 0;
+    let batchCount = 0;
     
     while (true) {
       const processedInBatch = await processBatch(offset);
