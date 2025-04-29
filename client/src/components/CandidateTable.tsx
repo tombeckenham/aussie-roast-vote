@@ -132,11 +132,7 @@ const CandidateTable = ({
     };
   }, [generatingPolicies, refetchCandidates]);
 
-  // Fetch seat information to display in the incumbent's track record
-  const { data: seat } = useQuery<{ id: number; name: string }>({
-    queryKey: [`/api/seats/${seatId}`],
-    enabled: !!seatId,
-  });
+ 
 
   console.log("Seat data:", seatId, candidates);
 
@@ -177,7 +173,7 @@ const CandidateTable = ({
             // Create a data URL from the base64 string
             const imageUrl = `data:image/png;base64,${data.imageData}`;
             return {...c, imageUrl};
-          }
+          }1
           return c;
         });
         
@@ -368,13 +364,7 @@ const CandidateTable = ({
                   </div>
                 </div>
               </div>
-              {candidate.isIncumbent && (
-                <div className="text-sm bg-gray-50 p-2 rounded mb-2 text-gray-700">
-                  <strong>Track Record:</strong> Current Member for{" "}
-                  {seat?.name || "this seat"}; serving since 2022; focused on
-                  climate action and healthcare reforms
-                </div>
-              )}
+            
             </div>
           </CardHeader>
 
