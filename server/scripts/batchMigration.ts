@@ -8,7 +8,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
 // Configuration
-const BATCH_SIZE = 10; // Process this many images at a time (further reduced to prevent timeouts)
+const BATCH_SIZE = 5; // Reduced batch size to prevent timeouts // Process this many images at a time (further reduced to prevent timeouts)
 const STORAGE_DIR = path.join(process.cwd(), "public", "storage");
 
 // Create the storage directory if it doesn't exist
@@ -128,10 +128,10 @@ async function migrateAllImages() {
       return;
     }
     
-    // Start from the beginning
-    let offset = 0;
-    let processedCount = 0;
-    let batchCount = 0;
+    // Continue from batch 3 (15 images processed)
+    let offset = 15;
+    let processedCount = 15;
+    let batchCount = 3;
     
     while (true) {
       const processedInBatch = await processBatch(offset);
