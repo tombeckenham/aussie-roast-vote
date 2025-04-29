@@ -1,4 +1,6 @@
 import type { Express, Request, Response } from "express";
+import express from 'express';
+import path from 'path';
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -36,6 +38,10 @@ import {
 import { sql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up static file serving for the storage directory
+  // This needs to come before the catch-all routes in vite.ts
+  app.use('/storage', express.static(path.join(process.cwd(), 'public/storage')));
+  
   // Initialize postcode mapping service and AEC data service
   await initializePostcodeMapping();
   initializeAECDataService();
@@ -599,7 +605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fromStorage: storageCandidate,
         imageUrlFromRaw: rawCandidate?.imageUrl,
         imageUrlFromStorage: storageCandidate?.imageUrl,
-        image_url_column: rawCandidate?.['image_url'], // Check for snake_case version using bracket notation
+        image_url_column: rawCandidate ? Object.entries(rawCandidate).find(([key]) => key === 'image_url')?.[1] : null, // Check for snake_case version safely
         rawKeys: Object.keys(rawCandidate || {}),
         storageKeys: Object.keys(storageCandidate || {}),
         debugInfo: {
