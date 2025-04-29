@@ -284,7 +284,9 @@ export async function processCandidatePerplexityData(
     });
 
     const processedContent = response.choices.reduce((acc, choice) => {
-      return acc + (choice.message.content || "Failed to process candidate data.");
+      return (
+        acc + (choice.message.content || "Failed to process candidate data.")
+      );
     }, "");
     console.log(
       `Successfully processed Perplexity data for ${candidateName} with xAI`,
@@ -322,21 +324,22 @@ export async function processPolicyPerplexityData(
 
     // First extract any policy information from the raw data
     const extractedPolicies = extractPoliciesFromRawData(rawData);
-    
+
     // Create a prompt for processing the raw data into humorous policy statements
     const prompt = `
       Create ONE SENTENCE Aussie style summary of ${candidateName}'s 
       ${partyName ? `(${partyName})` : "(Independent)"} policies using this data. 
       Really take the piss out of the policies. Make the summary short and sweet.
-      1 sentence is enough. Don't include g'day or any preamble. Just get straight into it.
+      1 sentence is enough. Don't include g'day, mate, or crikey at the beginning, just get straight into it.
       
       IMPORTANT: Do not use any markdown formatting like asterisks (*), hashtags (#), 
       or other special characters. Plain text only.
       
       Here's the raw policy data:
-      ${extractedPolicies.length > 0 
-        ? extractedPolicies.join('\n') 
-        : "No specific policy data available. Use the general information below."
+      ${
+        extractedPolicies.length > 0
+          ? extractedPolicies.join("\n")
+          : "No specific policy data available. Use the general information below."
       }
       
       Additional context:
@@ -355,26 +358,31 @@ export async function processPolicyPerplexityData(
       temperature: 0.8,
     });
 
-    let processedContent = response.choices[0].message.content || 
+    let processedContent =
+      response.choices[0].message.content ||
       "This drongo's policies are as empty as a pub on Sunday morning.";
-    
+
     // Clean up any markdown formatting that might have been included despite instructions
     processedContent = processedContent
-      .replace(/\*\*/g, '') // Remove bold formatting
-      .replace(/\*/g, '')   // Remove italic formatting
-      .replace(/^[-*#]+\s*/g, '') // Remove bullet points and hashtags at the beginning
-      .replace(/^[^a-zA-Z0-9]*/, '') // Remove any non-alphanumeric characters at the start
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove Markdown links
-      .replace(/`([^`]+)`/g, '$1')  // Remove code formatting
+      .replace(/\*\*/g, "") // Remove bold formatting
+      .replace(/\*/g, "") // Remove italic formatting
+      .replace(/^[-*#]+\s*/g, "") // Remove bullet points and hashtags at the beginning
+      .replace(/^[^a-zA-Z0-9]*/, "") // Remove any non-alphanumeric characters at the start
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Remove Markdown links
+      .replace(/`([^`]+)`/g, "$1") // Remove code formatting
       .trim();
-    
-    console.log(`Generated policy summary for ${candidateName}: ${processedContent}`);
+
+    console.log(
+      `Generated policy summary for ${candidateName}: ${processedContent}`,
+    );
 
     // Format the result as an array of policy statements
     return [processedContent];
   } catch (error) {
     console.error(`Error processing policy data for ${candidateName}:`, error);
-    return ["Policy information unavailable - this pollie's all talk and no action."];
+    return [
+      "Policy information unavailable - this pollie's all talk and no action.",
+    ];
   }
 }
 
@@ -451,7 +459,7 @@ export async function generateCaricatureImage(
     interface XAIImageResponse {
       data: Array<{ url: string }>;
     }
-    
+
     // Define the type guard outside the block
     const isValidImageResponse = (data: any): data is XAIImageResponse => {
       return (
@@ -461,7 +469,7 @@ export async function generateCaricatureImage(
         data.data.length > 0 &&
         typeof data.data[0].url === "string"
       );
-    }
+    };
 
     // Get the image URL from the response
     if (isValidImageResponse(data)) {
@@ -506,50 +514,52 @@ export async function generateCaricatureImage(
 export function extractPoliciesFromRawData(rawData: string): string[] {
   try {
     if (!rawData) return [];
-    
+
     console.log("Extracting policies from raw Perplexity data...");
-    
+
     // Find the policy section by looking for headings
     const policySection = rawData.match(
-      /(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i
+      /(?:1\. Key policy positions|Key Policy Positions|### 1\. Key Policy Positions and Political Stances)([\s\S]*?)(?:2\. Background|### 2\.)/i,
     );
-    
+
     if (!policySection || !policySection[1]) {
       console.log("No policy section found in raw data");
       return [];
     }
-    
+
     // Extract bullet points that start with dash
     const policyText = policySection[1];
     let policies = policyText
-      .split('\n')
-      .filter(line => line.trim().startsWith('-'))
-      .map(line => line.trim().replace(/^-\s*/, '').trim()) // Remove the dash and leading whitespace
-      .filter(policy => 
-        policy.length > 10 && 
-        policy.length < 150 && 
-        !policy.includes("Include policy positions") &&
-        !policy.includes("Note flagship policies") &&
-        !policy.includes("signature issues")
+      .split("\n")
+      .filter((line) => line.trim().startsWith("-"))
+      .map((line) => line.trim().replace(/^-\s*/, "").trim()) // Remove the dash and leading whitespace
+      .filter(
+        (policy) =>
+          policy.length > 10 &&
+          policy.length < 150 &&
+          !policy.includes("Include policy positions") &&
+          !policy.includes("Note flagship policies") &&
+          !policy.includes("signature issues"),
       );
-    
+
     // If we didn't find dash-based bullet points, try other formats
     if (policies.length === 0) {
       policies = policyText
         .split(/\n\s*-\s*|\n\*\*|\n•|\n\*/)
-        .filter(policy => 
-          policy.trim().length > 10 && 
-          !policy.includes("Key policy positions") &&
-          !policy.includes("Key Policy Positions") &&
-          !policy.includes("and Political Stances")
+        .filter(
+          (policy) =>
+            policy.trim().length > 10 &&
+            !policy.includes("Key policy positions") &&
+            !policy.includes("Key Policy Positions") &&
+            !policy.includes("and Political Stances"),
         )
-        .map(policy => policy.trim().replace(/\*\*/g, ""))
-        .filter(policy => policy.length > 10 && policy.length < 150);
+        .map((policy) => policy.trim().replace(/\*\*/g, ""))
+        .filter((policy) => policy.length > 10 && policy.length < 150);
     }
-    
+
     // Get top 3 policies
     policies = policies.slice(0, 3);
-    
+
     console.log(`Extracted ${policies.length} policies from raw data`);
     return policies;
   } catch (error) {
@@ -566,45 +576,47 @@ export function extractPoliciesFromRawData(rawData: string): string[] {
  */
 export async function generateCandidatePolicies(
   candidate: Candidate,
-  rawData?: string
+  rawData?: string,
 ): Promise<string[]> {
   try {
-    console.log(`Generating policies for ${candidate.name} with Perplexity data`);
+    console.log(
+      `Generating policies for ${candidate.name} with Perplexity data`,
+    );
 
     // Default policies based on party (fallback if everything else fails)
     const partyName = candidate.partyBallotName || "Independent";
-    
+
     let defaultPolicies: string[] = [];
-    
+
     if (partyName.includes("Liberal")) {
       defaultPolicies = [
         "Will lower taxes for small businesses and individuals.",
         "Committed to strengthening national security and border protection.",
-        "Supports investment in infrastructure for economic growth."
+        "Supports investment in infrastructure for economic growth.",
       ];
     } else if (partyName.includes("Labor")) {
       defaultPolicies = [
         "Will increase funding for public healthcare and education.",
         "Committed to action on climate change and renewable energy.",
-        "Supports strengthening workers' rights and fair wages."
+        "Supports strengthening workers' rights and fair wages.",
       ];
     } else if (partyName.includes("Green")) {
       defaultPolicies = [
         "Will implement ambitious climate action and environmental protection.",
         "Committed to social justice and equality initiatives.",
-        "Supports transition to 100% renewable energy sources."
+        "Supports transition to 100% renewable energy sources.",
       ];
     } else if (partyName.includes("One Nation")) {
       defaultPolicies = [
         "Will prioritize Australian jobs and industries first.",
         "Committed to reducing immigration and stronger border policies.",
-        "Supports traditional values and cultural preservation."
+        "Supports traditional values and cultural preservation.",
       ];
     } else if (partyName.includes("Independent")) {
       defaultPolicies = [
         "Will represent local community needs above party politics.",
         "Committed to transparency and accountability in government.",
-        "Supports practical solutions tailored to electorate concerns."
+        "Supports practical solutions tailored to electorate concerns.",
       ];
     }
 
@@ -614,49 +626,66 @@ export async function generateCandidatePolicies(
       try {
         // Process the policy data with xAI to get humorous one-sentence summary
         const aussiePolicySummary = await processPolicyPerplexityData(
-          candidate.name, 
-          candidate.partyBallotName, 
-          rawData
+          candidate.name,
+          candidate.partyBallotName,
+          rawData,
         );
-        
-        if (aussiePolicySummary.length > 0 && !aussiePolicySummary[0].includes("unavailable")) {
-          console.log(`Generated Aussie policy summary for ${candidate.name}:`, aussiePolicySummary[0]);
-          
+
+        if (
+          aussiePolicySummary.length > 0 &&
+          !aussiePolicySummary[0].includes("unavailable")
+        ) {
+          console.log(
+            `Generated Aussie policy summary for ${candidate.name}:`,
+            aussiePolicySummary[0],
+          );
+
           // STEP 2: Also extract regular policies for context
           const extractedPolicies = extractPoliciesFromRawData(rawData);
-          
+
           // If we have both, combine them - the funny summary first, then some regular policies
           if (extractedPolicies.length > 0) {
             return [
               aussiePolicySummary[0],
-              ...extractedPolicies.slice(0, Math.min(2, extractedPolicies.length))
+              ...extractedPolicies.slice(
+                0,
+                Math.min(2, extractedPolicies.length),
+              ),
             ];
           }
-          
+
           // If we only have the Aussie summary, return it alone (avoiding default policies)
           return [aussiePolicySummary[0]];
         }
       } catch (error) {
-        console.error(`Error generating Aussie policy summary for ${candidate.name}:`, error);
+        console.error(
+          `Error generating Aussie policy summary for ${candidate.name}:`,
+          error,
+        );
       }
-      
+
       // Fallback: Try to extract standard policies if the summary generation failed
       const extractedPolicies = extractPoliciesFromRawData(rawData);
       if (extractedPolicies.length > 0) {
-        console.log(`Using extracted policies from Perplexity data for ${candidate.name}:`, extractedPolicies);
+        console.log(
+          `Using extracted policies from Perplexity data for ${candidate.name}:`,
+          extractedPolicies,
+        );
         return extractedPolicies;
       }
     }
 
     // STEP 3: If no raw data, extraction failed, or xAI processing failed, use standard xAI policy generation
-    console.log(`No policies extracted from raw data, generating with xAI for ${candidate.name}`);
-    
+    console.log(
+      `No policies extracted from raw data, generating with xAI for ${candidate.name}`,
+    );
+
     // Create a prompt for policy generation with short timeout
     const prompt = `
       Generate 3 short policy positions for Australian politician ${candidate.name} 
       from the ${partyName} party. These should be in simple, concise, Australian political style.
       
-      ${rawData ? `Use this background information: ${rawData.substring(0, 1000)}...` : ''}
+      ${rawData ? `Use this background information: ${rawData.substring(0, 1000)}...` : ""}
       
       Each policy should:
       - Be a single sentence (15-20 words maximum)
@@ -672,7 +701,9 @@ export async function generateCandidatePolicies(
     // Set up a promise that times out
     const timeoutPromise = new Promise<string[]>((resolve) => {
       setTimeout(() => {
-        console.log(`Policy generation timed out for ${candidate.name}, using single fallback policy`);
+        console.log(
+          `Policy generation timed out for ${candidate.name}, using single fallback policy`,
+        );
         // Just use a single generic policy message instead of the full default set
         resolve(["This candidate's policies are currently unavailable."]);
       }, 8000); // 8 second timeout
@@ -687,12 +718,12 @@ export async function generateCandidatePolicies(
           messages: [{ role: "user", content: prompt }],
           max_tokens: 300,
           temperature: 0.6,
-          response_format: { type: "json_object" }
+          response_format: { type: "json_object" },
         });
-        
+
         const content = response.choices[0].message.content;
         console.log(`Generated policies for: ${candidate.name}`);
-        
+
         try {
           if (content) {
             const policies = JSON.parse(content);
@@ -703,7 +734,10 @@ export async function generateCandidatePolicies(
           }
           resolve(["Failed to generate specific policy information."]);
         } catch (parseError) {
-          console.error(`Error parsing policy JSON for ${candidate.name}:`, parseError);
+          console.error(
+            `Error parsing policy JSON for ${candidate.name}:`,
+            parseError,
+          );
           resolve(["Failed to parse policy information."]);
         }
       } catch (error) {
@@ -715,7 +749,10 @@ export async function generateCandidatePolicies(
     // Race the promises - whichever resolves first wins
     return Promise.race([apiPromise, timeoutPromise]);
   } catch (error) {
-    console.error(`Error in generateCandidatePolicies for ${candidate.name}:`, error);
+    console.error(
+      `Error in generateCandidatePolicies for ${candidate.name}:`,
+      error,
+    );
     return ["An error occurred while generating policy information."];
   }
 }

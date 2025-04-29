@@ -155,7 +155,7 @@ const CandidateTable = ({
           method: "POST",
         },
       );
-      
+
       if (response.ok) {
         return response.json() as Promise<CaricatureData>;
       } else if (response.status === 429) {
@@ -163,7 +163,9 @@ const CandidateTable = ({
         const errorData = await response.json();
         toast({
           title: "Rate limited",
-          description: errorData.message || "This operation is rate limited. Please try again later.",
+          description:
+            errorData.message ||
+            "This operation is rate limited. Please try again later.",
           variant: "destructive",
         });
         throw new Error(`Rate limited: ${errorData.message}`);
@@ -181,10 +183,10 @@ const CandidateTable = ({
     onError: (error) => {
       console.error("Caricature generation error:", error);
       setGeneratingCaricature(null);
-      
+
       // Only show generic error if it's not a rate limit error
       // (rate limit errors already show a toast)
-      if (!error.message?.includes('Rate limited')) {
+      if (!error.message?.includes("Rate limited")) {
         toast({
           title: "Portrait generation failed",
           description: "Failed to generate portrait. Please try again later.",
@@ -256,8 +258,10 @@ const CandidateTable = ({
                     // This is a rate limit error, but for auto-generation we'll silently fail
                     // so we don't overwhelm the user with notifications
                     const errorData = await response.json();
-                    console.log(`Rate limited for ${candidate.name}: ${errorData.message}`);
-                    
+                    console.log(
+                      `Rate limited for ${candidate.name}: ${errorData.message}`,
+                    );
+
                     // Just clear the loading state
                     setGeneratingPolicies((prev) =>
                       prev.filter((id) => id !== candidate.id),
@@ -417,14 +421,16 @@ const CandidateTable = ({
                           // Handle rate limit error
                           const errorData = await response.json();
                           console.log("Rate limited:", errorData.message);
-                          
+
                           // Show toast notification with rate limit message
                           toast({
                             title: "Rate limited",
-                            description: errorData.message || "This operation is rate limited. Please try again later.",
+                            description:
+                              errorData.message ||
+                              "This operation is rate limited. Please try again later.",
                             variant: "destructive",
                           });
-                          
+
                           // Clear loading state
                           setGeneratingPolicies((prev) =>
                             prev.filter((id) => id !== candidate.id),
@@ -438,14 +444,15 @@ const CandidateTable = ({
                           "Error initiating policy generation:",
                           err,
                         );
-                        
+
                         // Show error toast
                         toast({
                           title: "Generation failed",
-                          description: "Failed to generate policies. Please try again later.",
+                          description:
+                            "Failed to generate policies. Please try again later.",
                           variant: "destructive",
                         });
-                        
+
                         setGeneratingPolicies((prev) =>
                           prev.filter((id) => id !== candidate.id),
                         );
@@ -468,7 +475,7 @@ const CandidateTable = ({
               <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
                   candidate.keyPolicies
-                    .slice(0, 3)
+                    .slice(0, 1)
                     .map((policy, idx) => <li key={idx}>{policy}</li>)
                 ) : generatingPolicies.includes(candidate.id) ? (
                   <div className="flex items-center space-x-2 text-xs text-blue-600 ml-[-20px] mt-2">
@@ -511,24 +518,32 @@ const CandidateTable = ({
                             // Handle rate limit error
                             const errorData = await response.json();
                             console.log("Rate limited:", errorData.message);
-                            
+
                             // Show toast notification with rate limit message
                             toast({
                               title: "Rate limited",
-                              description: errorData.message || "This operation is rate limited. Please try again later.",
+                              description:
+                                errorData.message ||
+                                "This operation is rate limited. Please try again later.",
                               variant: "destructive",
                             });
                           } else {
-                            throw new Error(`Server returned ${response.status}`);
+                            throw new Error(
+                              `Server returned ${response.status}`,
+                            );
                           }
                         })
                         .catch((error) => {
-                          console.error("Error regenerating commentary:", error);
-                          
+                          console.error(
+                            "Error regenerating commentary:",
+                            error,
+                          );
+
                           // Show error toast
                           toast({
                             title: "Regeneration failed",
-                            description: "Failed to regenerate commentary. Please try again later.",
+                            description:
+                              "Failed to regenerate commentary. Please try again later.",
                             variant: "destructive",
                           });
                         });

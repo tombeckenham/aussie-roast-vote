@@ -487,6 +487,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           rateLimiter.recordOperation(candidateId, 'caricature');
         }
 
+        // Add debug log for API KEY presence
+        console.log(`XAI_API_KEY exists: ${!!process.env.XAI_API_KEY}`);
+        console.log(`XAI_API_KEY first few chars: ${process.env.XAI_API_KEY?.substring(0, 4)}...`);
+
         // Import the necessary service
         const { default: xaiService } = await import("./services/xaiService");
 
