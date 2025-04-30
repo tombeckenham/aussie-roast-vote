@@ -27,93 +27,96 @@ const openai = new OpenAI({
 export async function generateCandidateCaricature(
   candidate: Candidate,
 ): Promise<string> {
-  
-     // Create a shorter prompt for xAI that stays within character limits
-     const policyStr = candidate.keyPolicies && candidate.keyPolicies.length > 0
-     ? `Key policies: ${candidate.keyPolicies.slice(0, 1).join(", ")}.`
-     : "";
+  // Create a shorter prompt for xAI that stays within character limits
+  const policyStr =
+    candidate.keyPolicies && candidate.keyPolicies.length > 0
+      ? `Key policies: ${candidate.keyPolicies.slice(0, 1).join(", ")}.`
+      : "";
 
-   let enhancedPrompt = `Australian political cartoon of ${candidate.name} (${candidate.partyBallotName || "Independent"}). ${policyStr} ${candidate.isIncumbent ? "Current MP." : ""} Style: Exaggerated features, bright colors, clean lines. Include: Australian elements (cork hat/flag/kangaroo/koala), satirical elements, political humor based on stance. White background.`.trim();
+  let enhancedPrompt =
+    `Australian political cartoon of ${candidate.name} (${candidate.partyBallotName || "Independent"}). ${policyStr} ${candidate.isIncumbent ? "Current MP." : ""} Style: Exaggerated features, bright colors, clean lines. Include: Australian elements (cork hat/flag/kangaroo/koala), satirical elements, political humor based on stance. White background.`.trim();
 
-   // Before sending the request, check and log the prompt length
-   console.log(`Prompt length: ${enhancedPrompt.length} characters`);
-   if (enhancedPrompt.length > 1000) {
-     console.log("Warning: Prompt approaching maximum length, truncating...");
-     enhancedPrompt = enhancedPrompt.substring(0, 1000);
-   }
+  // Before sending the request, check and log the prompt length
+  console.log(`Prompt length: ${enhancedPrompt.length} characters`);
+  if (enhancedPrompt.length > 1000) {
+    console.log("Warning: Prompt approaching maximum length, truncating...");
+    enhancedPrompt = enhancedPrompt.substring(0, 1000);
+  }
 
-   // Make a direct fetch to the xAI API (without using any 'size' parameter)
-   const response = await fetch("https://api.x.ai/v1/images/generations", {
-     method: "POST",
-     headers: {
-       "Content-Type": "application/json",
-       Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-     },
-     body: JSON.stringify({
-       prompt: enhancedPrompt,
-       model: "grok-2-image", // Using the latest model for image generation
-       n: 1,
-     }),
-   });
+  // Make a direct fetch to the xAI API (without using any 'size' parameter)
+  const response = await fetch("https://api.x.ai/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      prompt: enhancedPrompt,
+      model: "grok-2-image", // Using the latest model for image generation
+      n: 1,
+    }),
+  });
 
-   if (!response.ok) {
-     console.error(
-       `xAI image generation failed with status: ${response.status}`,
-     );
-     const errorData = await response.json();
-     console.error("Error details:", errorData);
-     throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
-   }
+  if (!response.ok) {
+    console.error(
+      `xAI image generation failed with status: ${response.status}`,
+    );
+    const errorData = await response.json();
+    console.error("Error details:", errorData);
+    throw new Error(`xAI API error: ${JSON.stringify(errorData)}`);
+  }
 
-   const data = await response.json();
-    // Type guard to check if response data has the expected structure
-    if (
-      data &&
-      typeof data === "object" &&
-      'data' in data && Array.isArray(data.data) &&
-      data.data.length > 0 &&
-      typeof data.data[0].url === "string"
-    ) {
-      console.log(
-        `Successfully generated caricature image for ${candidate.name} using xAI`,
+  const data = await response.json();
+  // Type guard to check if response data has the expected structure
+  if (
+    data &&
+    typeof data === "object" &&
+    "data" in data &&
+    Array.isArray(data.data) &&
+    data.data.length > 0 &&
+    typeof data.data[0].url === "string"
+  ) {
+    console.log(
+      `Successfully generated caricature image for ${candidate.name} using xAI`,
+    );
+
+    // Fetch the image from the URL and store it in Replit storage
+    let base64Image = null;
+    try {
+      const imageUrl = data.data[0].url;
+
+      // Import the Replit storage service
+      const replitStorageService = await import("./replitStorageService").then(
+        (m) => m.default,
       );
 
-      // Fetch the image from the URL and store it in Replit storage
-      let base64Image = null;
-      try {
-        const imageUrl = data.data[0].url;
-        
-        // Import the Replit storage service
-        const replitStorageService = await import("./replitStorageService").then(m => m.default);
-        
-        // Save the image to Replit storage and get the local URL
-        const localImageUrl = await replitStorageService.saveImageFromUrl(
-          imageUrl,
-          candidate.id,
-          candidate.surname
-        );
-        
-        // Update the database with the local URL
-        await storage.updateCandidateImage(candidate.id, localImageUrl);
-        
-        // Also fetch the image as base64 for the response
-        const imageResponse = await fetch(imageUrl);
-        const imageBuffer = await imageResponse.arrayBuffer();
-        base64Image = Buffer.from(imageBuffer).toString("base64");
-      } catch (fetchOrStoreError) {
-        console.error(
-          `Error fetching or storing image for ${candidate.name}:`,
-          fetchOrStoreError,
-        );
-        throw new Error( "Failed to fetch or store generated image" );
-      }
+      // Save the image to Replit storage and get the local URL
+      const localImageUrl = await replitStorageService.saveImageFromUrl(
+        imageUrl,
+        candidate.id,
+        candidate.surname,
+      );
 
-      // Return image data in the response
-      return base64Image
-    } else {
-      throw new Error( "Failed to generate caricature" );
+      // Update the database with the local URL
+      await storage.updateCandidateImage(candidate.id, localImageUrl);
+
+      // Also fetch the image as base64 for the response
+      const imageResponse = await fetch(imageUrl);
+      const imageBuffer = await imageResponse.arrayBuffer();
+      base64Image = Buffer.from(imageBuffer).toString("base64");
+    } catch (fetchOrStoreError) {
+      console.error(
+        `Error fetching or storing image for ${candidate.name}:`,
+        fetchOrStoreError,
+      );
+      throw new Error("Failed to fetch or store generated image");
     }
-    
+
+    // Return image data in the response
+    return base64Image;
+  } else {
+    throw new Error("Failed to generate caricature");
+  }
 }
 
 /**
@@ -559,20 +562,23 @@ export function extractPoliciesFromRawData(rawData: string): string[] {
 
     console.log("Extracting policies from raw Perplexity data...");
 
-    const lines = rawData.split('\n');
+    const lines = rawData.split("\n");
     let policySectionStartIndex = -1;
     let nextSectionStartIndex = -1;
 
     // Regex to find potential policy headers (case-insensitive, multiline)
     // Looks for lines starting with optional #, optional number/dot, optional whitespace,
     // then keywords like Policy, Stances, Positions, Issues, Priorities.
-    const policyHeaderRegex = /^#*\s*\d*\.?\s*(?:Key\s+|Main\s+)?(?:Policies|Policy\s+Positions?|Political\s+Stances?|Key\s+Issues?|Priorities)\b.*$/im;
+    const policyHeaderRegex =
+      /^#*\s*\d*\.?\s*(?:Key\s+|Main\s+)?(?:Policies|Policy\s+Positions?|Political\s+Stances?|Key\s+Issues?|Priorities)\b.*$/im;
 
     // Find the start of the policy section
     for (let i = 0; i < lines.length; i++) {
       if (policyHeaderRegex.test(lines[i])) {
         policySectionStartIndex = i;
-        console.log(`Found potential policy header at line ${i + 1}: "${lines[i]}"`);
+        console.log(
+          `Found potential policy header at line ${i + 1}: "${lines[i]}"`,
+        );
         break;
       }
     }
@@ -589,9 +595,15 @@ export function extractPoliciesFromRawData(rawData: string): string[] {
     // Find the start of the next section *after* the policy header
     for (let i = policySectionStartIndex + 1; i < lines.length; i++) {
       // Also consider double newlines or horizontal rules as section breaks
-      if (nextSectionHeaderRegex.test(lines[i]) || /^-{3,}$|^={3,}$/.test(lines[i]) || (lines[i].trim() === '' && lines[i-1]?.trim() === '')) {
+      if (
+        nextSectionHeaderRegex.test(lines[i]) ||
+        /^-{3,}$|^={3,}$/.test(lines[i]) ||
+        (lines[i].trim() === "" && lines[i - 1]?.trim() === "")
+      ) {
         nextSectionStartIndex = i;
-        console.log(`Found potential next section header at line ${i + 1}: "${lines[i]}"`);
+        console.log(
+          `Found potential next section header at line ${i + 1}: "${lines[i]}"`,
+        );
         break;
       }
     }
@@ -599,9 +611,9 @@ export function extractPoliciesFromRawData(rawData: string): string[] {
     // Extract the text between the policy header and the next section header (or end of text)
     const policyBlockLines = lines.slice(
       policySectionStartIndex + 1, // Start after the header line
-      nextSectionStartIndex !== -1 ? nextSectionStartIndex : undefined // Go until next header or end
+      nextSectionStartIndex !== -1 ? nextSectionStartIndex : undefined, // Go until next header or end
     );
-    const policyBlockText = policyBlockLines.join('\n').trim();
+    const policyBlockText = policyBlockLines.join("\n").trim();
 
     if (!policyBlockText) {
       console.log("Policy section found, but it appears empty.");
@@ -615,19 +627,19 @@ export function extractPoliciesFromRawData(rawData: string): string[] {
     //   .map(line => line.trim())
     //   .filter(line => /^[-*•]|^(?:\d+|[a-zA-Z])[.)]/.test(line)) // Keep lines starting with list markers
     //   .map(line => line.replace(/^[-*•]|^(?:\d+|[a-zA-Z])[.)]\s*/, '').trim()) // Remove the marker
-    //   .filter(policy => 
-    //       policy.length > 10 && 
+    //   .filter(policy =>
+    //       policy.length > 10 &&
     //       policy.length < 200 && // Allow slightly longer policies now
     //       !/(?:include|note|signature|position|stance|policy)/i.test(policy) // Filter out instructional lines
     //   );
-    
+
     // // Fallback: If no list markers found, split by sentence and take first few sentences.
     // if (policies.length === 0) {
     //    console.log("No list markers found in policy block, attempting sentence splitting.");
     //    policies = policyBlockText
     //      .split(/[.!?](?!\d)/) // Split by sentence endings (avoid splitting on decimals)
     //      .map(sentence => sentence.trim())
-    //      .filter(sentence => 
+    //      .filter(sentence =>
     //          sentence.length > 15 && // Reasonably long sentence
     //          sentence.length < 200 &&
     //          !/(?:include|note|signature|position|stance|policy)/i.test(sentence)
@@ -835,27 +847,33 @@ export async function generateCandidatePolicies(
 
 class XaiService {
   // Use proper method implementation referencing the existing functions
-  
+
   async generateCandidateCaricature(candidate: Candidate): Promise<string> {
     return generateCandidateCaricature(candidate);
   }
-  async generateCandidateRoast(candidate: Candidate, isSpicy: boolean = false): Promise<string | null> {
+  async generateCandidateRoast(
+    candidate: Candidate,
+    isSpicy: boolean = false,
+  ): Promise<string | null> {
     // Pass the isSpicy parameter to the implementation function
     return generateCandidateRoast(candidate);
   }
 
   async processCandidatePerplexityData(
-    candidateName: string, 
-    partyName: string | null, 
-    rawData: string
+    candidateName: string,
+    partyName: string | null,
+    rawData: string,
   ): Promise<string> {
     return processCandidatePerplexityData(candidateName, partyName, rawData);
   }
 
-  async generateCandidatePolicies(candidate: Candidate, rawData?: string): Promise<string[]> {
+  async generateCandidatePolicies(
+    candidate: Candidate,
+    rawData?: string,
+  ): Promise<string[]> {
     return generateCandidatePolicies(candidate, rawData);
   }
-  
+
   // Add alias method for generateKeyPolicies to match the API call in routes.ts
   async generateKeyPolicies(candidate: Candidate): Promise<string[]> {
     return this.generateCandidatePolicies(candidate);
@@ -864,20 +882,10 @@ class XaiService {
   async generateWhyVote(candidate: Candidate): Promise<string | null> {
     try {
       console.log(`Generating 'Why Vote' for ${candidate.name}...`);
-      
+
       const prompt = `
-        You are writing a short, concise "Why vote for me" blurb for Australian politician 
-        ${candidate.name} from the ${candidate.partyBallotName || "Independent"} party.
-        
-        Use first person voice (as if the candidate is speaking) and be persuasive but brief (50-70 words).
-        Focus on what makes this candidate and their policies unique and appealing to voters.
-        The tone should be professional and direct - like campaign material.
-        
-        If you know the party affiliation (${candidate.partyBallotName || "Independent"}), 
-        include relevant policy positions typical of that party in Australian politics.
-        
-        Format as a simple paragraph with no quotation marks, titles, or other formatting.
-      `;
+        You are writing a short, concise "Why vote for em" blurb for Australian politician 
+        ${candidate.name} from the ${candidate.partyBallotName || "Independent"} party, a candidate for the 2025 Australian Election. Use Aussie slang, be cynical, make fun of the candidate, and keep it short and sweet. Take the piss out of people who would vote for them. It should be one sentance.`;
 
       // Make the request to xAI
       const response = await openai.chat.completions.create({
@@ -893,7 +901,7 @@ class XaiService {
       });
 
       const content = response.choices[0].message.content || null;
-      
+
       // Clean up any formatting that might be included
       if (content) {
         return content
@@ -901,7 +909,7 @@ class XaiService {
           .replace(/^\s*[\-\*#]\s+/gm, "") // Remove bullet points
           .trim();
       }
-      
+
       return content;
     } catch (error) {
       console.error(`Error generating whyVote for ${candidate.name}:`, error);

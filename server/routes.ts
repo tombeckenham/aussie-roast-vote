@@ -637,7 +637,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const results = {
           policies: false,
           whyVote: false,
-          commentary: false
+          commentary: false,
+          caricature: false
         };
         
         // Import the xAI service
@@ -687,9 +688,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`Error regenerating 'Why Vote' for ${candidate.name}:`, error);
         }
         
+        // 4. Generate caricature/portrait image
+        try {
+          // Only generate a new image if one doesn't exist or if forcing regeneration
+          if (!candidate.imageUrl || forceRegenerate) {
+            console.log(`Regenerating caricature for ${candidate.name}`);
+            const imageData = await xaiService.generateCandidateCaricature(candidate);
+            
+            if (imageData) {
+              // Convert base64 image to file and store it
+              const { default: replitStorageService } = await import("./services/replitStorageService");
+              
+              // Save the image to storage
+              const hash = Math.random().toString(36).substring(2, 10);
+              const safeName = candidate.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              const filename = `candidate_${candidate.id}_${safeName}_${hash}.jpg`;
+              
+              const imageUrl = await replitStorageService.saveBase64Image(
+                imageData,
+                filename
+              );
+              
+              // Update candidate with new image URL
+              if (imageUrl) {
+                await storage.updateCandidateImage(candidate.id, imageUrl);
+                results.caricature = true;
+                console.log(`Generated new caricature for ${candidate.name}: ${imageUrl}`);
+              }
+            }
+          } else {
+            console.log(`Candidate ${candidate.name} already has an image, skipping caricature generation`);
+          }
+        } catch (error) {
+          console.error(`Error regenerating caricature for ${candidate.name}:`, error);
+        }
+        
         // Return results
         res.json({
-          success: results.policies || results.commentary || results.whyVote,
+          success: results.policies || results.commentary || results.whyVote || results.caricature,
           message: `Content regeneration completed for ${candidate.name}`,
           results
         });

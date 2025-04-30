@@ -473,59 +473,63 @@ const CandidateTable = ({
         >
           <CardHeader className="pb-2">
             <div className="flex flex-col">
-              <div className="flex justify-between mb-2">
-                <div className="flex items-center">
-                  <Avatar className="h-20 w-20 mr-3">
-                    <AvatarImage
-                      src={candidate.imageUrl || undefined}
-                      alt={candidate.name}
-                      className="object-cover"
-                      data-candidate-id={candidate.id}
-                      onError={(e) => {
-                        console.error(`Image load error for ${candidate.name}: ${candidate.imageUrl}`);
-                      }}
-                    />
-                    <AvatarFallback>
-                      <User size={32} />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{candidate.name}</CardTitle>
-                    <CardDescription>
-                      {candidate.partyBallotName ||
-                        (candidate.isIndependent ? "Independent" : "-")}
-                      {candidate.position && (
-                        <span> · {candidate.position}</span>
+              <div className="flex flex-col space-y-2">
+                <div className="flex justify-between">
+                  <div className="flex items-center">
+                    <Avatar className="h-20 w-20 mr-3">
+                      <AvatarImage
+                        src={candidate.imageUrl || undefined}
+                        alt={candidate.name}
+                        className="object-cover"
+                        data-candidate-id={candidate.id}
+                        onError={(e) => {
+                          console.error(`Image load error for ${candidate.name}: ${candidate.imageUrl}`);
+                        }}
+                      />
+                      <AvatarFallback>
+                        <User size={32} />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-lg">{candidate.name}</CardTitle>
+                      <CardDescription>
+                        {candidate.partyBallotName ||
+                          (candidate.isIndependent ? "Independent" : "-")}
+                        {candidate.position && (
+                          <span> · {candidate.position}</span>
+                        )}
+                      </CardDescription>
+                      {candidate.isIncumbent && (
+                        <Badge className="bg-aussie-gold text-dark-text mt-1">
+                          Incumbent
+                        </Badge>
                       )}
-                    </CardDescription>
-                    {candidate.isIncumbent && (
-                      <Badge className="bg-aussie-gold text-dark-text mt-1">
-                        Incumbent
-                      </Badge>
-                    )}
+                    </div>
                   </div>
                 </div>
                 
                 {/* Regenerate All Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 self-start"
-                  disabled={regeneratingAll.includes(candidate.id)}
-                  onClick={() => handleRegenerateAll(candidate.id)}
-                >
-                  {regeneratingAll.includes(candidate.id) ? (
-                    <>
-                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                      <span className="text-xs">Regenerating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-2" />
-                      <span className="text-xs">Regenerate All</span>
-                    </>
-                  )}
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    disabled={regeneratingAll.includes(candidate.id)}
+                    onClick={() => handleRegenerateAll(candidate.id)}
+                  >
+                    {regeneratingAll.includes(candidate.id) ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                        <span className="text-xs">Regenerating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-2" />
+                        <span className="text-xs">Regenerate All</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>
