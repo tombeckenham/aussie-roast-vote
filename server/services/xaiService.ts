@@ -3,6 +3,37 @@
  * Uses x.ai's Grok models via the OpenAI package
  */
 
+/**
+ * Helper function to strip markdown formatting from text
+ * @param text The text to strip markdown from
+ * @returns Text with markdown formatting removed
+ */
+function stripMarkdown(text: string | null): string {
+  if (!text) return "";
+  
+  return text
+    // Remove headers (# Header)
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove bold/italic (**bold**, *italic*)
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    // Remove links ([text](url))
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    // Remove blockquotes (> quote)
+    .replace(/^>\s+/gm, '')
+    // Remove bullet points and numbered lists
+    .replace(/^\s*[\-\*•]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Remove code blocks
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove quotes at beginning/end
+    .replace(/^["']|["']$/g, "")
+    // Clean extra whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 import OpenAI from "openai";
 import { Candidate } from "@shared/schema";
 import fs from "fs";
@@ -150,7 +181,7 @@ export async function generateCandidateRoast(
     });
 
     console.log("Generated roast for: " + candidate.name);
-    return response.choices[0].message.content;
+    return stripMarkdown(response.choices[0].message.content);
   } catch (error) {
     console.error(`Error generating roast for ${candidate.name}:`, error);
     return null;
@@ -201,7 +232,7 @@ export async function answerCandidateQuestion(
     });
 
     console.log("Generated answer for question about: " + candidate.name);
-    return response.choices[0].message.content;
+    return stripMarkdown(response.choices[0].message.content);
   } catch (error) {
     console.error(`Error answering question about ${candidate.name}:`, error);
     return null;
@@ -328,11 +359,15 @@ export async function processCandidatePerplexityData(
       temperature: 0.7,
     });
 
-    const processedContent = response.choices.reduce((acc, choice) => {
+    let processedContent = response.choices.reduce((acc, choice) => {
       return (
         acc + (choice.message.content || "Failed to process candidate data.")
       );
     }, "");
+    
+    // Apply markdown stripping
+    processedContent = stripMarkdown(processedContent);
+    
     console.log(
       `Successfully processed Perplexity data for ${candidateName} with xAI`,
       processedContent,
@@ -901,16 +936,9 @@ class XaiService {
       });
 
       const content = response.choices[0].message.content || null;
-
-      // Clean up any formatting that might be included
-      if (content) {
-        return content
-          .replace(/^["']|["']$/g, "") // Remove quotes at beginning/end
-          .replace(/^\s*[\-\*#]\s+/gm, "") // Remove bullet points
-          .trim();
-      }
-
-      return content;
+      
+      // Use the stripMarkdown function to clean up any formatting
+      return stripMarkdown(content);
     } catch (error) {
       console.error(`Error generating whyVote for ${candidate.name}:`, error);
       return null;

@@ -535,31 +535,6 @@ const CandidateTable = ({
           </CardHeader>
 
           <CardContent className="flex flex-col">
-            {/* Key Policies */}
-            <div className="mb-2">
-              <div className="mb-1">
-                <h4 className="text-sm font-semibold text-muted-foreground">
-                  Key Policies
-                </h4>
-              </div>
-              <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
-                {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
-                  candidate.keyPolicies
-                    .slice(0, 1)
-                    .map((policy, idx) => <li key={idx}>{policy}</li>)
-                ) : generatingPolicies.includes(candidate.id) ? (
-                  <div className="flex items-center space-x-2 text-xs text-blue-600 ml-[-20px] mt-2">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Generating policies...</span>
-                  </div>
-                ) : (
-                  <>
-                    <li>Policy information unavailable</li>
-                    <li>Policies will be generated automatically</li>
-                  </>
-                )}
-              </ul>
-            </div>
 
             {/* Commentary */}
             <div className="mb-4">
