@@ -835,7 +835,12 @@ export async function generateCandidatePolicies(
 
 class XaiService {
   // Use proper method implementation referencing the existing functions
-  async generateCandidateRoast(candidate: Candidate): Promise<string | null> {
+  
+  async generateCandidateCaricature(candidate: Candidate): Promise<string> {
+    return generateCandidateCaricature(candidate);
+  }
+  async generateCandidateRoast(candidate: Candidate, isSpicy: boolean = false): Promise<string | null> {
+    // Pass the isSpicy parameter to the implementation function
     return generateCandidateRoast(candidate);
   }
 
@@ -849,6 +854,11 @@ class XaiService {
 
   async generateCandidatePolicies(candidate: Candidate, rawData?: string): Promise<string[]> {
     return generateCandidatePolicies(candidate, rawData);
+  }
+  
+  // Add alias method for generateKeyPolicies to match the API call in routes.ts
+  async generateKeyPolicies(candidate: Candidate): Promise<string[]> {
+    return this.generateCandidatePolicies(candidate);
   }
 
   async generateWhyVote(candidate: Candidate): Promise<string | null> {

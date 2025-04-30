@@ -766,11 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(
           `Generating 'Why Vote' text for candidate ${candidate.name}...`,
         );
-        const whyVoteText = await xaiService.generateWhyVote(
-          candidate,
-          partyName,
-          seatName,
-        );
+        const whyVoteText = await xaiService.generateWhyVote(candidate);
 
         if (!whyVoteText) {
           throw new Error("xAI service did not return text.");
