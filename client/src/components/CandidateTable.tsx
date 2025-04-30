@@ -57,6 +57,7 @@ const CandidateTable = ({
   >(null);
   const [generatingPolicies, setGeneratingPolicies] = useState<number[]>([]);
   const [generatingWhyVote, setGeneratingWhyVote] = useState<number[]>([]);
+  const [regeneratingAll, setRegeneratingAll] = useState<number[]>([]);
   const [commentariesState, setCommentaries] = useState<Record<number, string>>(
     {},
   );

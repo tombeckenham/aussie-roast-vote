@@ -834,20 +834,70 @@ export async function generateCandidatePolicies(
 }
 
 class XaiService {
-  private client: any; // Use 'any' for now, replace with actual type if available
-
-  // Placeholder for the new function
-  async generateWhyVote(candidate: any, partyName: string, seatName: string): Promise<string> {
-    // TODO: Implement actual call to xAi using candidate data
-    // Example prompt structure:
-    // "Generate a short, humorous, Aussie slang-filled reason why someone might vote for ${candidate.name} (${partyName}) running in ${seatName}. Focus on their potential strengths or unique points based on their bio: ${candidate.bio} and policies: ${candidate.keyPolicies?.join(', ')}. Keep it under 20 words."
-    console.log(`[xAI Service - Placeholder] Generating 'Why Vote' for ${candidate.name}`);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    // Return placeholder text
-    return `Might as well give ${candidate.name.split(' ')[0]} a burl, seems like a fair dinkum choice.`;
+  // Use proper method implementation referencing the existing functions
+  async generateCandidateRoast(candidate: Candidate): Promise<string | null> {
+    return generateCandidateRoast(candidate);
   }
 
+  async processCandidatePerplexityData(
+    candidateName: string, 
+    partyName: string | null, 
+    rawData: string
+  ): Promise<string> {
+    return processCandidatePerplexityData(candidateName, partyName, rawData);
+  }
+
+  async generateCandidatePolicies(candidate: Candidate, rawData?: string): Promise<string[]> {
+    return generateCandidatePolicies(candidate, rawData);
+  }
+
+  async generateWhyVote(candidate: Candidate): Promise<string | null> {
+    try {
+      console.log(`Generating 'Why Vote' for ${candidate.name}...`);
+      
+      const prompt = `
+        You are writing a short, concise "Why vote for me" blurb for Australian politician 
+        ${candidate.name} from the ${candidate.partyBallotName || "Independent"} party.
+        
+        Use first person voice (as if the candidate is speaking) and be persuasive but brief (50-70 words).
+        Focus on what makes this candidate and their policies unique and appealing to voters.
+        The tone should be professional and direct - like campaign material.
+        
+        If you know the party affiliation (${candidate.partyBallotName || "Independent"}), 
+        include relevant policy positions typical of that party in Australian politics.
+        
+        Format as a simple paragraph with no quotation marks, titles, or other formatting.
+      `;
+
+      // Make the request to xAI
+      const response = await openai.chat.completions.create({
+        model: "grok-3-beta", // Using the text model
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        max_tokens: 250,
+        temperature: 0.6, // More factual, less creative
+      });
+
+      const content = response.choices[0].message.content || null;
+      
+      // Clean up any formatting that might be included
+      if (content) {
+        return content
+          .replace(/^["']|["']$/g, "") // Remove quotes at beginning/end
+          .replace(/^\s*[\-\*#]\s+/gm, "") // Remove bullet points
+          .trim();
+      }
+      
+      return content;
+    } catch (error) {
+      console.error(`Error generating whyVote for ${candidate.name}:`, error);
+      return null;
+    }
+  }
 }
 
 export default new XaiService();

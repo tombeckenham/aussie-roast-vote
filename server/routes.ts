@@ -322,6 +322,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 fullContent,
               });
 
+              // Generate a "Why Vote" statement
+              console.log(`Auto-generating 'Why Vote' for ${candidate.name}`);
+              try {
+                const whyVoteText = await xaiService.generateWhyVote(candidate);
+                if (whyVoteText) {
+                  // Update the candidate with the whyVote text
+                  await db
+                    .update(candidates)
+                    .set({ whyVote: whyVoteText })
+                    .where(eq(candidates.id, candidate.id));
+                  console.log(`Generated 'Why Vote' for ${candidate.name}`);
+                }
+              } catch (whyVoteError) {
+                console.error(`Error generating 'Why Vote' for ${candidate.name}:`, whyVoteError);
+              }
+
               commentaryResults[candidate.id] = fullContent;
             }
           } catch (error) {
