@@ -1,0 +1,2 @@
+# This file exists to preserve the storage directory structure in git
+# while ignoring the actual content of the storage directory.

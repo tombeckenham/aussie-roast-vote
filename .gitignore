@@ -1,6 +1,10 @@
 node_modules
 dist
 .DS_Store
-server/public
 vite.config.ts.*
 *.tar.gz
+
+# Ignore contents of the storage directory but keep the folder structure
+/public/storage/*
+# Keep the .gitkeep file to preserve the directory structure
+!/public/storage/.gitkeep
