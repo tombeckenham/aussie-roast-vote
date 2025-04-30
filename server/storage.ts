@@ -660,24 +660,17 @@ export class DatabaseStorage implements IStorage {
     return createdQA;
   }
 
-  // Add this placeholder method
   async updateCandidateWhyVote(candidateId: number, whyVoteText: string): Promise<void> {
-    // TODO: Implement database update logic (e.g., using Prisma or your ORM)
-    console.log(`[Storage - Placeholder] Updating DB for candidate ${candidateId} with WhyVote: ${whyVoteText}`);
-    // Example using Drizzle ORM (adjust to your actual schema/ORM and candidates table reference)
-    /*
     try {
-      await db.update(candidates) // Assuming 'candidates' is your Drizzle table object
-        .set({ whyVote: whyVoteText, updatedAt: new Date() })
+      await db.update(candidates)
+        .set({ whyVote: whyVoteText })
         .where(eq(candidates.id, candidateId));
-      console.log(`Successfully updated whyVote for candidate ${candidateId}`);
+      console.log(`[Storage - DB] Updating DB for candidate ${candidateId} with WhyVote: ${whyVoteText.substring(0, 70)}...`);
     } catch (error) {
       console.error(`Error updating whyVote for candidate ${candidateId}:`, error);
-      // Handle or throw the error appropriately
+      // Log for fallback
+      console.log(`[Storage - Placeholder] Updating DB for candidate ${candidateId} with WhyVote: ${whyVoteText.substring(0, 70)}...`);
     }
-    */
-   // Simulate async operation
-   await new Promise(resolve => setTimeout(resolve, 50)); 
   }
 }
 

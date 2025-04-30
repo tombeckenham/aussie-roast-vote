@@ -587,6 +587,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Regenerate all content for a candidate (policies, commentary, why vote)
+  app.post(
+    "/api/candidates/:id/regenerate-all",
+    async (req: Request, res: Response) => {
+      try {
+        const candidateId = parseInt(req.params.id, 10);
+        const forceRegenerate = req.query.force === "true";
+
+        if (isNaN(candidateId)) {
+          return res.status(400).json({ message: "Invalid candidate ID" });
+        }
+
+        const candidate = await storage.getCandidateById(candidateId);
+        if (!candidate) {
+          return res.status(404).json({ message: "Candidate not found" });
+        }
+
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
+
+        // Check if operation is allowed based on rate limiting
+        const isAllowed = rateLimiter.isOperationAllowed(
+          candidateId,
+          "regenerate-all", // Use a unique operation key
+          forceRegenerate,
+        );
+        
+        if (!isAllowed) {
+          const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+            candidateId,
+            "regenerate-all",
+          );
+          console.log(
+            `Rate limited: Content regeneration for ${candidate.name} was performed recently. Next available in ${timeRemaining}`
+          );
+          return res.status(429).json({
+            message: `Content regeneration for this candidate is rate limited. Try again in ${timeRemaining}.`,
+            timeRemaining,
+          });
+        }
+        
+        // Record the operation
+        rateLimiter.recordOperation(candidateId, "regenerate-all");
+
+        // Track success of operations
+        const results = {
+          policies: false,
+          whyVote: false,
+          commentary: false
+        };
+        
+        // Import the xAI service
+        const { default: xaiService } = await import("./services/xaiService");
+        
+        // 1. Generate policies
+        try {
+          console.log(`Regenerating policies for ${candidate.name}`);
+          const policies = await xaiService.generateKeyPolicies(candidate);
+          if (policies && policies.length > 0) {
+            await storage.updateCandidatePolicies(candidateId, policies);
+            results.policies = true;
+          }
+        } catch (error) {
+          console.error(`Error regenerating policies for ${candidate.name}:`, error);
+        }
+
+        // 2. Generate commentary/roast
+        try {
+          console.log(`Regenerating commentary for ${candidate.name}`);
+          const commentary = await xaiService.generateCandidateRoast(candidate, true);
+          if (commentary) {
+            const existingRoast = await storage.getRoastByCandidate(candidateId);
+            if (existingRoast) {
+              console.log(`Replacing existing commentary for ${candidate.name}`);
+            }
+            await storage.createRoast({
+              candidateId: candidate.id,
+              content: commentary,
+              fullContent: commentary,
+            });
+            results.commentary = true;
+          }
+        } catch (error) {
+          console.error(`Error regenerating commentary for ${candidate.name}:`, error);
+        }
+        
+        // 3. Generate "Why Vote"
+        try {
+          console.log(`Regenerating 'Why Vote' for ${candidate.name}`);
+          const whyVoteText = await xaiService.generateWhyVote(candidate);
+          if (whyVoteText) {
+            await storage.updateCandidateWhyVote(candidateId, whyVoteText);
+            results.whyVote = true;
+          }
+        } catch (error) {
+          console.error(`Error regenerating 'Why Vote' for ${candidate.name}:`, error);
+        }
+        
+        // Return results
+        res.json({
+          success: results.policies || results.commentary || results.whyVote,
+          message: `Content regeneration completed for ${candidate.name}`,
+          results
+        });
+        
+      } catch (error) {
+        console.error("Error regenerating content:", error);
+        res.status(500).json({ message: "Failed to regenerate content" });
+      }
+    }
+  );
+
   // Generate "Why Vote" text for a candidate
   app.post(
     "/api/candidates/:id/generate-why-vote",

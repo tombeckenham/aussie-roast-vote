@@ -268,41 +268,31 @@ const CandidateTable = ({
     mutationFn: async (candidateId: number) => {
       setRegeneratingAll((prev) => [...prev, candidateId]);
       
-      // Track success of each operation
-      const results = {
-        policies: false,
-        whyVote: false,
-        roast: false
-      };
+      // Call the new endpoint that handles all regeneration in one request
+      const response = await fetch(
+        `/api/candidates/${candidateId}/regenerate-all?force=true`,
+        { method: "POST" }
+      );
       
-      try {
-        // Regenerate policies
-        const policiesResponse = await fetch(
-          `/api/candidates/${candidateId}/generate-policies?force=true`,
-          { method: "POST" }
-        );
-        results.policies = policiesResponse.ok;
-        
-        // Regenerate why vote
-        const whyVoteResponse = await fetch(
-          `/api/candidates/${candidateId}/generate-why-vote?force=true`,
-          { method: "POST" }
-        );
-        results.whyVote = whyVoteResponse.ok;
-        
-        // Regenerate roast/commentary
-        const roastResponse = await fetch(
-          `/api/candidates/${candidateId}/regenerate-commentary?force=true`,
-          { method: "POST" }
-        );
-        results.roast = roastResponse.ok;
-        
-        // Return the candidate ID for success handling
-        return { candidateId, results };
-      } catch (error) {
-        console.error("Error during regeneration:", error);
-        throw error;
+      if (!response.ok) {
+        if (response.status === 429) {
+          // Rate limited
+          const errorData = await response.json();
+          throw new Error(`Rate limited: ${errorData.message}`);
+        } else {
+          throw new Error(`Server returned ${response.status}`);
+        }
       }
+      
+      // Parse the response
+      const responseData = await response.json();
+      
+      // Return the response data with candidateId
+      return { 
+        candidateId, 
+        results: responseData.results,
+        success: responseData.success
+      };
     },
     onSuccess: (data) => {
       // Refresh the data
