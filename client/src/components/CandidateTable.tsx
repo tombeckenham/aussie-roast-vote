@@ -263,6 +263,83 @@ const CandidateTable = ({
     },
   });
 
+  // Create a mutation for regenerating all content for a candidate
+  const regenerateAllMutation = useMutation({
+    mutationFn: async (candidateId: number) => {
+      setRegeneratingAll((prev) => [...prev, candidateId]);
+      
+      // Track success of each operation
+      const results = {
+        policies: false,
+        whyVote: false,
+        roast: false
+      };
+      
+      try {
+        // Regenerate policies
+        const policiesResponse = await fetch(
+          `/api/candidates/${candidateId}/generate-policies?force=true`,
+          { method: "POST" }
+        );
+        results.policies = policiesResponse.ok;
+        
+        // Regenerate why vote
+        const whyVoteResponse = await fetch(
+          `/api/candidates/${candidateId}/generate-why-vote?force=true`,
+          { method: "POST" }
+        );
+        results.whyVote = whyVoteResponse.ok;
+        
+        // Regenerate roast/commentary
+        const roastResponse = await fetch(
+          `/api/candidates/${candidateId}/regenerate-commentary?force=true`,
+          { method: "POST" }
+        );
+        results.roast = roastResponse.ok;
+        
+        // Return the candidate ID for success handling
+        return { candidateId, results };
+      } catch (error) {
+        console.error("Error during regeneration:", error);
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      // Refresh the data
+      refetchCandidates();
+      
+      // Clear regenerating state
+      setRegeneratingAll((prev) => prev.filter(id => id !== data.candidateId));
+      
+      // Show success message
+      toast({
+        title: "Regeneration complete",
+        description: "Content has been regenerated successfully.",
+      });
+    },
+    onError: (error, variables) => {
+      console.error("Regeneration error:", error);
+      
+      // Clear regenerating state
+      setRegeneratingAll((prev) => prev.filter(id => id !== variables));
+      
+      // Show error message
+      if (!error.message?.includes("Rate limited")) {
+        toast({
+          title: "Regeneration failed",
+          description: "Failed to regenerate some content. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    }
+  });
+
+  const handleRegenerateAll = (candidateId: number) => {
+    if (!regeneratingAll.includes(candidateId)) {
+      regenerateAllMutation.mutate(candidateId);
+    }
+  };
+
   const handleGenerateCaricature = (candidateId: number) => {
     if (generatingCaricature !== candidateId) {
       generateCaricatureMutation.mutate(candidateId);
@@ -409,16 +486,13 @@ const CandidateTable = ({
               <div className="flex justify-between mb-2">
                 <div className="flex items-center">
                   <Avatar className="h-20 w-20 mr-3">
-                    {/* Removed debugging console logs that clutter the console */}
-                    
                     <AvatarImage
-                      src={candidate.imageUrl}
+                      src={candidate.imageUrl || undefined}
                       alt={candidate.name}
                       className="object-cover"
                       data-candidate-id={candidate.id}
                       onError={(e) => {
                         console.error(`Image load error for ${candidate.name}: ${candidate.imageUrl}`);
-                        // Only log the error, don't try to modify the image src directly
                       }}
                     />
                     <AvatarFallback>
@@ -441,112 +515,38 @@ const CandidateTable = ({
                     )}
                   </div>
                 </div>
+                
+                {/* Regenerate All Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 self-start"
+                  disabled={regeneratingAll.includes(candidate.id)}
+                  onClick={() => handleRegenerateAll(candidate.id)}
+                >
+                  {regeneratingAll.includes(candidate.id) ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                      <span className="text-xs">Regenerating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-2" />
+                      <span className="text-xs">Regenerate All</span>
+                    </>
+                  )}
+                </Button>
               </div>
-            
             </div>
           </CardHeader>
 
           <CardContent className="flex flex-col">
             {/* Key Policies */}
             <div className="mb-2">
-              <div className="flex justify-between items-center mb-1">
+              <div className="mb-1">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Key Policies
                 </h4>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2"
-                  disabled={generatingPolicies.includes(candidate.id)}
-                  onClick={() => {
-                    // Set loading state for this candidate
-                    setGeneratingPolicies((prev) => [...prev, candidate.id]);
-
-                    // Trigger policy regeneration for this candidate
-                    fetch(
-                      `/api/candidates/${candidate.id}/generate-policies?force=true`,
-                      {
-                        method: "POST",
-                      },
-                    )
-                      .then(async (response) => {
-                        if (response.ok) {
-                          console.log(
-                            "Policy generation initiated for:",
-                            candidate.name,
-                          );
-                          // Start polling by immediately refreshing data
-                          refetchCandidates();
-
-                          // Set a timeout to clear the loading state after 30 seconds
-                          // just in case the polling doesn't detect the changes
-                          setTimeout(() => {
-                            if (generatingPolicies.includes(candidate.id)) {
-                              console.log(
-                                "Clearing generation state after timeout",
-                              );
-                              setGeneratingPolicies((prev) =>
-                                prev.filter((id) => id !== candidate.id),
-                              );
-                              // Try one final refresh
-                              refetchCandidates();
-                            }
-                          }, 30000);
-                        } else if (response.status === 429) {
-                          // Handle rate limit error
-                          const errorData = await response.json();
-                          console.log("Rate limited:", errorData.message);
-
-                          // Show toast notification with rate limit message
-                          toast({
-                            title: "Rate limited",
-                            description:
-                              errorData.message ||
-                              "This operation is rate limited. Please try again later.",
-                            variant: "destructive",
-                          });
-
-                          // Clear loading state
-                          setGeneratingPolicies((prev) =>
-                            prev.filter((id) => id !== candidate.id),
-                          );
-                        } else {
-                          throw new Error(`Server returned ${response.status}`);
-                        }
-                      })
-                      .catch((err) => {
-                        console.error(
-                          "Error initiating policy generation:",
-                          err,
-                        );
-
-                        // Show error toast
-                        toast({
-                          title: "Generation failed",
-                          description:
-                            "Failed to generate policies. Please try again later.",
-                          variant: "destructive",
-                        });
-
-                        setGeneratingPolicies((prev) =>
-                          prev.filter((id) => id !== candidate.id),
-                        );
-                      });
-                  }}
-                >
-                  {generatingPolicies.includes(candidate.id) ? (
-                    <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      <span className="text-xs">Regenerating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      <span className="text-xs">Regenerate</span>
-                    </>
-                  )}
-                </Button>
               </div>
               <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
                 {candidate.keyPolicies && candidate.keyPolicies.length > 0 ? (
@@ -569,66 +569,10 @@ const CandidateTable = ({
 
             {/* Commentary */}
             <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
+              <div className="mb-2">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Overview
                 </h4>
-                {candidate.roast && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2"
-                    onClick={() => {
-                      // Only need to trigger a regeneration of this specific candidate on the server
-                      fetch(
-                        `/api/candidates/${candidate.id}/regenerate-commentary?force=true`,
-                        {
-                          method: "POST",
-                        },
-                      )
-                        .then(async (response) => {
-                          if (response.ok) {
-                            // Force a refresh of the candidate data
-                            refetchCandidates();
-                          } else if (response.status === 429) {
-                            // Handle rate limit error
-                            const errorData = await response.json();
-                            console.log("Rate limited:", errorData.message);
-
-                            // Show toast notification with rate limit message
-                            toast({
-                              title: "Rate limited",
-                              description:
-                                errorData.message ||
-                                "This operation is rate limited. Please try again later.",
-                              variant: "destructive",
-                            });
-                          } else {
-                            throw new Error(
-                              `Server returned ${response.status}`,
-                            );
-                          }
-                        })
-                        .catch((error) => {
-                          console.error(
-                            "Error regenerating commentary:",
-                            error,
-                          );
-
-                          // Show error toast
-                          toast({
-                            title: "Regeneration failed",
-                            description:
-                              "Failed to regenerate commentary. Please try again later.",
-                            variant: "destructive",
-                          });
-                        });
-                    }}
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    <span className="text-xs">Regenerate</span>
-                  </Button>
-                )}
               </div>
               {isGeneratingCommentary && !candidate.roast?.fullContent ? (
                 <div className="space-y-2">
@@ -654,32 +598,11 @@ const CandidateTable = ({
 
             {/* Why Vote Section */}
             <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
+              <div className="mb-2">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   Why Vote For 'Em?{" "}
                   <span className="text-xs italic">(AI Generated)</span>
                 </h4>
-                {candidate.whyVote && ( // Show regenerate only if text exists
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2"
-                    disabled={generatingWhyVote.includes(candidate.id)}
-                    onClick={() => generateWhyVoteMutation.mutate(candidate.id)}
-                  >
-                    {generatingWhyVote.includes(candidate.id) ? (
-                       <>
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        <span className="text-xs">Regenerating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        <span className="text-xs">Regenerate</span>
-                      </>
-                    )}
-                  </Button>
-                )}
               </div>
               {generatingWhyVote.includes(candidate.id) ? (
                  <div className="flex items-center space-x-2 text-xs text-blue-600 mt-2">
@@ -699,23 +622,6 @@ const CandidateTable = ({
             </div>
 
           </CardContent>
-
-          <CardFooter className="flex justify-end">
-            <Button
-              onClick={() => handleGenerateCaricature(candidate.id)}
-              variant="outline"
-              size="sm"
-              disabled={
-                generateCaricatureMutation.isPending &&
-                generatingCaricature === candidate.id
-              }
-            >
-              {generateCaricatureMutation.isPending &&
-              generatingCaricature === candidate.id
-                ? "Generating..."
-                : "Regenerate Portrait"}
-            </Button>
-          </CardFooter>
         </Card>
       ))}
     </div>

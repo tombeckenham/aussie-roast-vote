@@ -327,11 +327,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 const whyVoteText = await xaiService.generateWhyVote(candidate);
                 if (whyVoteText) {
-                  // Update the candidate with the whyVote text
-                  await db
-                    .update(candidates)
-                    .set({ whyVote: whyVoteText })
-                    .where(eq(candidates.id, candidate.id));
+                  // Use the storage.updateCandidateWhyVote method which should be implemented
+                  await storage.updateCandidateWhyVote(candidate.id, whyVoteText);
                   console.log(`Generated 'Why Vote' for ${candidate.name}`);
                 }
               } catch (whyVoteError) {
