@@ -36,6 +36,7 @@ interface Candidate {
   websiteUrl: string | null;
   isIncumbent: boolean | null;
   roast?: { content: string; fullContent: string; isSpicy: boolean };
+  whyVote?: string | null;
 }
 
 interface CaricatureData {
@@ -55,6 +56,7 @@ const CandidateTable = ({
     number | null
   >(null);
   const [generatingPolicies, setGeneratingPolicies] = useState<number[]>([]);
+  const [generatingWhyVote, setGeneratingWhyVote] = useState<number[]>([]);
   const [commentariesState, setCommentaries] = useState<Record<number, string>>(
     {},
   );
@@ -206,6 +208,60 @@ const CandidateTable = ({
     },
   });
 
+  // Generate "Why Vote" mutation
+  const generateWhyVoteMutation = useMutation({
+    mutationFn: async (candidateId: number) => {
+      setGeneratingWhyVote((prev) => [...prev, candidateId]);
+      const response = await fetch(
+        `/api/candidates/${candidateId}/generate-why-vote`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (response.ok) {
+        // We expect the backend to return the updated candidate object or just the text
+        // For simplicity, let's refetch the candidate list to get all updated data
+        return candidateId;
+      } else if (response.status === 429) {
+        const errorData = await response.json();
+        toast({
+          title: "Rate limited",
+          description:
+            errorData.message ||
+            "This operation is rate limited. Please try again later.",
+          variant: "destructive",
+        });
+        throw new Error(`Rate limited: ${errorData.message}`);
+      } else {
+        throw new Error("Failed to generate 'Why Vote' text");
+      }
+    },
+    onSuccess: (candidateId) => {
+      // Invalidate queries to refetch updated data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/seats/${seatId}/candidates`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/candidates/${candidateId}`],
+      });
+      // Remove from generating list - refetch will update UI
+      setGeneratingWhyVote((prev) => prev.filter((id) => id !== candidateId));
+    },
+    onError: (error, candidateId) => {
+      console.error("'Why Vote' generation error:", error);
+      setGeneratingWhyVote((prev) => prev.filter((id) => id !== candidateId));
+
+      if (!error.message?.includes("Rate limited")) {
+        toast({
+          title: "'Why Vote' generation failed",
+          description: "Failed to generate text. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
   const handleGenerateCaricature = (candidateId: number) => {
     if (generatingCaricature !== candidateId) {
       generateCaricatureMutation.mutate(candidateId);
@@ -282,6 +338,21 @@ const CandidateTable = ({
             },
             2000 + 2000 * Math.random(),
           ); // Random delay between 2-4 seconds
+        }
+
+        // Auto-generate "Why Vote" text if missing
+        if (
+          !candidate.whyVote &&
+          !generatingWhyVote.includes(candidate.id) &&
+          !generateWhyVoteMutation.isPending // Avoid duplicate triggers
+        ) {
+          setTimeout(
+            () => {
+              console.log(`Auto-generating 'Why Vote' for ${candidate.name}`);
+              generateWhyVoteMutation.mutate(candidate.id);
+            },
+            3000 + 2000 * Math.random(), // Slightly longer random delay (3-5s)
+          );
         }
       });
     }
@@ -579,6 +650,53 @@ const CandidateTable = ({
                 </div>
               )}
             </div>
+
+            {/* Why Vote Section */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Why Vote For 'Em?{" "}
+                  <span className="text-xs italic">(AI Generated)</span>
+                </h4>
+                {candidate.whyVote && ( // Show regenerate only if text exists
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    disabled={generatingWhyVote.includes(candidate.id)}
+                    onClick={() => generateWhyVoteMutation.mutate(candidate.id)}
+                  >
+                    {generatingWhyVote.includes(candidate.id) ? (
+                       <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        <span className="text-xs">Regenerating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        <span className="text-xs">Regenerate</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+              {generatingWhyVote.includes(candidate.id) ? (
+                 <div className="flex items-center space-x-2 text-xs text-blue-600 mt-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Cookin' up some fair dinkum reasons...</span>
+                  </div>
+              ) : candidate.whyVote ? (
+                 <div className="text-sm py-2 px-3 border-l-2 border-l-aussie-gold/40 rounded-r-sm bg-amber-50/50 text-gray-700 italic">
+                  "{candidate.whyVote}"
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-gray-500 text-sm justify-center border border-dashed border-gray-200 rounded p-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Reasons incoming, mate...</span>
+                </div>
+              )}
+            </div>
+
           </CardContent>
 
           <CardFooter className="flex justify-end">

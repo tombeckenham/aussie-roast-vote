@@ -75,6 +75,7 @@ export const candidates = pgTable("candidates", {
   facebookUrl: text("facebook_url"),
   websiteUrl: text("website_url"),
   keyPolicies: text("key_policies").array(),
+  whyVote: text("why_vote"),
   isIncumbent: boolean("is_incumbent").default(false)
 });
 

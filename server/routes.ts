@@ -574,6 +574,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Generate "Why Vote" text for a candidate
+  app.post(
+    "/api/candidates/:id/generate-why-vote",
+    async (req: Request, res: Response) => {
+      try {
+        const candidateId = parseInt(req.params.id, 10);
+        const forceRegenerate = req.query.force === "true";
+
+        if (isNaN(candidateId)) {
+          return res.status(400).json({ message: "Invalid candidate ID" });
+        }
+
+        const candidate = await storage.getCandidateById(candidateId);
+        if (!candidate) {
+          return res.status(404).json({ message: "Candidate not found" });
+        }
+
+        // Import rate limiter
+        const rateLimiter = await import("./services/rateLimiter").then(
+          (m) => m.default,
+        );
+
+        // Check if operation is allowed based on rate limiting
+        // Only rate limit if generating for the first time or if forced
+        if (forceRegenerate || !candidate.whyVote) {
+          const isAllowed = rateLimiter.isOperationAllowed(
+            candidateId,
+            "whyVote", // Use a unique operation key
+            forceRegenerate,
+          );
+          if (!isAllowed) {
+            const timeRemaining = rateLimiter.getTimeRemainingFormatted(
+              candidateId,
+              "whyVote",
+            );
+            console.log(
+              `Rate limited: 'Why Vote' generation for ${candidate.name} was performed recently. Next available in ${timeRemaining}`,
+            );
+            return res.status(429).json({
+              message: `'Why Vote' generation for this candidate is rate limited. Try again in ${timeRemaining}.`,
+              timeRemaining,
+            });
+          }
+          // Record the operation only if it wasn't rate limited
+          rateLimiter.recordOperation(candidateId, "whyVote");
+        }
+
+        // Fetch party data for context
+        let partyName = "Independent";
+        if (candidate.partyId) {
+          const party = await storage.getPartyById(candidate.partyId);
+          partyName = party?.name || "Independent";
+        }
+
+        // Fetch seat data for context
+        const seat = await storage.getElectoralSeatById(
+          candidate.electoralSeatId,
+        );
+        const seatName = seat?.name || "Unknown Electorate";
+
+        // Import the xAI service
+        const { default: xaiService } = await import("./services/xaiService");
+        console.log(
+          `Generating 'Why Vote' text for candidate ${candidate.name}...`,
+        );
+        const whyVoteText = await xaiService.generateWhyVote(
+          candidate,
+          partyName,
+          seatName,
+        );
+
+        if (!whyVoteText) {
+          throw new Error("xAI service did not return text.");
+        }
+
+        // Update the candidate in the database
+        await storage.updateCandidateWhyVote(candidateId, whyVoteText);
+
+        // Respond with success (the frontend will refetch)
+        res.json({
+          success: true,
+          message: `\'Why Vote\' text generated for ${candidate.name}`,
+        });
+      } catch (error) {
+        console.error("Error generating 'Why Vote' text:", error);
+        // Avoid sending detailed errors to the client
+        const message = error instanceof Error && error.message.includes("Rate limited")
+          ? error.message
+          : "Failed to generate \'Why Vote\' text";
+        const status = error instanceof Error && error.message.includes("Rate limited") ? 429 : 500;
+        res.status(status).json({ message });
+      }
+    },
+  );
+
   // Debug endpoint to check all ai_roasts
   app.get("/api/debug/roasts", async (req: Request, res: Response) => {
     try {

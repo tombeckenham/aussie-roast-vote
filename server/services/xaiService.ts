@@ -833,13 +833,21 @@ export async function generateCandidatePolicies(
   }
 }
 
-export default {
-  generateCandidateCaricature,
-  generateCandidateRoast,
-  answerCandidateQuestion,
-  generateCampaignActivities,
-  processCandidatePerplexityData,
-  processPolicyPerplexityData,
-  generateCaricatureImage,
-  generateCandidatePolicies,
-};
+class XaiService {
+  private client: any; // Use 'any' for now, replace with actual type if available
+
+  // Placeholder for the new function
+  async generateWhyVote(candidate: any, partyName: string, seatName: string): Promise<string> {
+    // TODO: Implement actual call to xAi using candidate data
+    // Example prompt structure:
+    // "Generate a short, humorous, Aussie slang-filled reason why someone might vote for ${candidate.name} (${partyName}) running in ${seatName}. Focus on their potential strengths or unique points based on their bio: ${candidate.bio} and policies: ${candidate.keyPolicies?.join(', ')}. Keep it under 20 words."
+    console.log(`[xAI Service - Placeholder] Generating 'Why Vote' for ${candidate.name}`);
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Return placeholder text
+    return `Might as well give ${candidate.name.split(' ')[0]} a burl, seems like a fair dinkum choice.`;
+  }
+
+}
+
+export default new XaiService();

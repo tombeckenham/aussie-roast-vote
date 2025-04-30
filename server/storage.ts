@@ -659,6 +659,26 @@ export class DatabaseStorage implements IStorage {
     const [createdQA] = await db.insert(candidateQA).values(qa).returning();
     return createdQA;
   }
+
+  // Add this placeholder method
+  async updateCandidateWhyVote(candidateId: number, whyVoteText: string): Promise<void> {
+    // TODO: Implement database update logic (e.g., using Prisma or your ORM)
+    console.log(`[Storage - Placeholder] Updating DB for candidate ${candidateId} with WhyVote: ${whyVoteText}`);
+    // Example using Drizzle ORM (adjust to your actual schema/ORM and candidates table reference)
+    /*
+    try {
+      await db.update(candidates) // Assuming 'candidates' is your Drizzle table object
+        .set({ whyVote: whyVoteText, updatedAt: new Date() })
+        .where(eq(candidates.id, candidateId));
+      console.log(`Successfully updated whyVote for candidate ${candidateId}`);
+    } catch (error) {
+      console.error(`Error updating whyVote for candidate ${candidateId}:`, error);
+      // Handle or throw the error appropriately
+    }
+    */
+   // Simulate async operation
+   await new Promise(resolve => setTimeout(resolve, 50)); 
+  }
 }
 
 // Switch from MemStorage to DatabaseStorage

@@ -5,7 +5,7 @@
  * period for each candidate for various AI generation operations.
  */
 
-type OperationType = 'policies' | 'commentary' | 'caricature' | 'qa';
+type OperationType = 'policies' | 'commentary' | 'caricature' | 'qa' | 'whyVote';
 
 interface RateLimitEntry {
   candidateId: number;
