@@ -6,6 +6,27 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// www to non-www redirect middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const host = req.hostname;
+  
+  // Check if the hostname starts with 'www.'
+  if (host.startsWith('www.')) {
+    // Get protocol (http or https)
+    const protocol = req.protocol;
+    
+    // Create the non-www URL
+    const nonWwwHost = host.slice(4); // Remove 'www.'
+    const newUrl = `${protocol}://${nonWwwHost}${req.originalUrl}`;
+    
+    // Redirect with 301 status (permanent redirect)
+    return res.redirect(301, newUrl);
+  }
+  
+  // Continue to the next middleware if not www
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
