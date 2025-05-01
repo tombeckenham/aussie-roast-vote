@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenGraph Image Creator</title>
+  <style>
+    body { 
+      margin: 0; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh;
+      background-color: #f5f5f5;
+    }
+    canvas { 
+      border: 1px solid #ddd; 
+      max-width: 100%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .controls {
+      margin-top: 20px;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <canvas id="canvas" width="1200" height="630"></canvas>
+    <div class="controls">
+      <button id="downloadBtn">Download Image</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Background
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, 1200, 630);
+    
+    // Australian flag colors as decorative elements
+    ctx.fillStyle = '#00008B';
+    ctx.fillRect(0, 0, 1200, 20);
+    ctx.fillRect(0, 610, 1200, 20);
+    ctx.fillRect(0, 0, 20, 630);
+    ctx.fillRect(1180, 0, 20, 630);
+    
+    // Gold accent
+    ctx.fillStyle = '#FFCD00';
+    ctx.fillRect(40, 40, 1120, 10);
+    ctx.fillRect(40, 580, 1120, 10);
+    
+    // Main title
+    ctx.fillStyle = '#343a40';
+    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aussie How-to-vote', 600, 180);
+    
+    // Subtitle
+    ctx.fillStyle = '#495057';
+    ctx.font = '48px Arial, sans-serif';
+    ctx.fillText('2025 Election Guide', 600, 260);
+    
+    // Description
+    ctx.fillStyle = '#495057';
+    ctx.font = '32px Arial, sans-serif';
+    ctx.fillText('Your comprehensive guide to candidates,', 600, 360);
+    ctx.fillText('policies, and electorates', 600, 410);
+    
+    // Stars from Southern Cross
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(960, 120, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1020, 160, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(990, 200, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1040, 220, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(980, 260, 14, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Website URL
+    ctx.fillStyle = '#6c757d';
+    ctx.font = '28px Arial, sans-serif';
+    ctx.fillText('aussiehowtovote.com.au', 600, 520);
+    
+    // Download functionality
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+      const link = document.createElement('a');
+      link.download = 'og-image.jpg';
+      link.href = canvas.toDataURL('image/jpeg', 0.8);
+      link.click();
+    });
+  </script>
+</body>
+</html>
