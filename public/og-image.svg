@@ -1,0 +1,46 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#f8f9fa"/>
+  
+  <!-- Australian flag colors as decorative elements -->
+  <rect x="0" y="0" width="1200" height="20" fill="#00008B"/>
+  <rect x="0" y="610" width="1200" height="20" fill="#00008B"/>
+  <rect x="0" y="0" width="20" height="630" fill="#00008B"/>
+  <rect x="1180" y="0" width="20" height="630" fill="#00008B"/>
+  
+  <!-- Gold accent -->
+  <rect x="40" y="40" width="1120" height="10" fill="#FFCD00"/>
+  <rect x="40" y="580" width="1120" height="10" fill="#FFCD00"/>
+  
+  <!-- Main title -->
+  <text x="600" y="180" font-family="Arial, sans-serif" font-size="72" font-weight="bold" text-anchor="middle" fill="#343a40">
+    Aussie How-to-vote
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="260" font-family="Arial, sans-serif" font-size="48" font-weight="normal" text-anchor="middle" fill="#495057">
+    2025 Election Guide
+  </text>
+  
+  <!-- Description -->
+  <text x="600" y="360" font-family="Arial, sans-serif" font-size="32" font-weight="normal" text-anchor="middle" fill="#495057">
+    Your comprehensive guide to candidates,
+  </text>
+  <text x="600" y="410" font-family="Arial, sans-serif" font-size="32" font-weight="normal" text-anchor="middle" fill="#495057">
+    policies, and electorates
+  </text>
+  
+  <!-- Stars from Southern Cross -->
+  <g fill="#FFFFFF">
+    <circle cx="960" cy="120" r="15"/>
+    <circle cx="1020" cy="160" r="12"/>
+    <circle cx="990" cy="200" r="18"/>
+    <circle cx="1040" cy="220" r="10"/>
+    <circle cx="980" cy="260" r="14"/>
+  </g>
+  
+  <!-- Website URL -->
+  <text x="600" y="520" font-family="Arial, sans-serif" font-size="28" font-weight="normal" text-anchor="middle" fill="#6c757d">
+    aussiehowtovote.com.au
+  </text>
+</svg>
